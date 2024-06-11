@@ -109,7 +109,7 @@ const LoginScreen = () => {
           await AsyncStorage.setItem('userRole', final.rol);
           if (final.rol === 'encargado') {
             router.replace('/(tabs)/encargado');
-          } else if (final.rol === 'profesor') {
+          } else if (final.rol === 'docente') {
             router.replace('/(tabs)/profesor');
           }
         } else {

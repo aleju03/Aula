@@ -10,11 +10,11 @@ export default function App() {
       try {
         const storedUserRole = await AsyncStorage.getItem('userRole');
         if (storedUserRole === 'encargado') {
-          router.replace('/(tabs)/encargado');
+          router.replace('/(tabs)/encargado', { animation: 'none' });
         } else if (storedUserRole === 'profesor') {
-          router.replace('/(tabs)/profesor');
+          router.replace('/(tabs)/profesor', { animation: 'none' });
         } else {
-          router.replace('/(auth)/login');
+          router.replace('/(auth)/login', { animation: 'none' });
         }
       } catch (error) {
         console.error('Error al obtener el rol del usuario:', error);
