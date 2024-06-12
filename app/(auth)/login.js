@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
 
 // Componente principal de la pantalla de inicio de sesión
 const LoginScreen = () => {
-  // Estado para el formulario y el indicador de carga
   const [form, setForm] = useState({
     carne: '',
     contrasena: '',
@@ -80,7 +79,6 @@ const LoginScreen = () => {
 
   const router = useRouter();
 
-  // Función para manejar el inicio de sesión
   const handleLogin = async () => {
     if (!form.carne || !form.contrasena) {
       Alert.alert(
@@ -95,7 +93,7 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       const carneP = query(collection(db, 'Usuarios'), where('carne', '==', form.carne));
-      const usuario = await getDocs(carneP, { fields: ['contraseña', 'rol'] });
+      const usuario = await getDocs(carneP);
       if (usuario.empty) {
         Alert.alert(
           'Error',
@@ -107,6 +105,8 @@ const LoginScreen = () => {
         const final = usuario.docs[0].data();
         if (final.contraseña === form.contrasena) {
           await AsyncStorage.setItem('userRole', final.rol);
+          await AsyncStorage.setItem('userId', form.carne);
+
           if (final.rol === 'encargado') {
             router.replace('/(tabs)/encargado');
           } else if (final.rol === 'docente') {
@@ -134,7 +134,6 @@ const LoginScreen = () => {
     }
   };
 
-  // Función para manejar el cambio en el campo de carné
   const handleCarneChange = (carne) => {
     if (/^\d*$/.test(carne)) {
       setForm({ ...form, carne });
