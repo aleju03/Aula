@@ -11,7 +11,7 @@ export default function App() {
         const storedUserRole = await AsyncStorage.getItem('userRole');
         if (storedUserRole === 'encargado') {
           router.replace('/(tabs)/encargado', { animation: 'none' });
-        } else if (storedUserRole === 'profesor') {
+        } else if (storedUserRole === 'docente') {
           router.replace('/(tabs)/profesor', { animation: 'none' });
         } else {
           router.replace('/(auth)/login', { animation: 'none' });
