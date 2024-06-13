@@ -1,25 +1,21 @@
-// Al entrar a un grupo, se ven todos los integrantes (estudiantes) y sus respectivos encargados
-// Hay un botón para mensajear un encargado
-
-// Tareas: Total de asignaciones pasará a ser "Asignaciones activas"
-// Falta arreglar state management acá y en profile.js para que los datos no spawneen on the go, que salga todo pre cargado
-// Falta la pantalla tras clickear en un grupo
-
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Avatar, List, Divider, Card, Title, Paragraph } from 'react-native-paper';
+import { Avatar, List, Divider, Card, Title, Paragraph, Button } from 'react-native-paper';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChalkboardTeacher } from '@fortawesome/free-solid-svg-icons';
+import { faChalkboardTeacher, faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
 import { db } from '../../../utils/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfesorHome = () => {
   const [profesor, setProfesor] = useState(null);
   const [grupos, setGrupos] = useState([]);
   const [totalAsignaciones, setTotalAsignaciones] = useState(0);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [groupAssignments, setGroupAssignments] = useState([]);
 
   const router = useRouter();
 
@@ -66,12 +62,63 @@ const ProfesorHome = () => {
     router.push('/profesor/assignments');
   };
 
+  const handleGroupPress = async (group) => {
+    setSelectedGroup(group);
+
+    const encargadosPromises = group.encargados.map((encargadoRef) => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
+    const encargadosSnapshots = await Promise.all(encargadosPromises);
+    const encargadosData = encargadosSnapshots.map((snapshot) => snapshot.docs[0].data());
+
+    const groupMembersData = encargadosData.flatMap((encargado) => {
+      if (encargado.estudiantes && encargado.estudiantes.length > 0) {
+        return encargado.estudiantes;
+      } else {
+        return { nombre: encargado.nombre };
+      }
+    });
+
+    setGroupMembers(groupMembersData);
+
+    const assignmentsQuery = query(collection(db, 'Asignaciones'), where('grupo', '==', group.id));
+    const assignmentsSnapshot = await getDocs(assignmentsQuery);
+    const assignmentsData = assignmentsSnapshot.docs.map((doc) => doc.data());
+    setGroupAssignments(assignmentsData);
+  };
+
+  const handleMemberMessage = (member) => {
+    // Handle messaging logic for the selected member
+    console.log('Message member:', member);
+  };
+
+  const handleGroupMessage = () => {
+    // Handle messaging logic for the entire group
+    console.log('Message group:', selectedGroup);
+  };
+
   const renderGrupoItem = ({ item }) => (
-    <List.Item
-      title={item.nombre}
-      description={`Integrantes: ${item.encargados.length}`}
-      left={props => <List.Icon {...props} icon={() => <MaterialCommunityIcons name="account-group" size={24} color="#888" />} />}
-    />
+    <TouchableOpacity onPress={() => handleGroupPress(item)}>
+      <List.Item
+        title={item.nombre}
+        description={`Integrantes: ${item.encargados.length}`}
+        left={props => <List.Icon {...props} icon={() => <MaterialCommunityIcons name="account-group" size={24} color="#888" />} />}
+      />
+    </TouchableOpacity>
+  );
+
+  const renderMemberItem = ({ item }) => (
+    <View style={styles.memberItem}>
+      <Text style={styles.memberName}>{item.nombre}</Text>
+      <TouchableOpacity onPress={() => handleMemberMessage(item)}>
+        <FontAwesomeIcon icon={faEnvelope} size={20} color="#075eec" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderAssignmentItem = ({ item }) => (
+    <View style={styles.assignmentItem}>
+      <Text style={styles.assignmentTitle}>{item.titulo}</Text>
+      <Text style={styles.assignmentDescription}>{item.descripcion}</Text>
+    </View>
   );
 
   return (
@@ -79,7 +126,7 @@ const ProfesorHome = () => {
       <View style={styles.header}>
         <Avatar.Icon size={64} icon={() => <FontAwesomeIcon icon={faChalkboardTeacher} size={32} color="#ffffff" />} />
         <View style={styles.headerContent}>
-          <Text style={styles.welcomeText}>Bienvenido, {profesor && profesor.nombre ? profesor.nombre.split(' ')[0] : ''}</Text>
+          <Text style={styles.welcomeText}>Bienvenido, {profesor?.nombre.split(' ')[0]}</Text>
           <Text style={styles.subtitleText}>Aquí tienes un resumen de tu actividad.</Text>
         </View>
       </View>
@@ -109,6 +156,45 @@ const ProfesorHome = () => {
           <Text style={styles.emptyText}>No tienes grupos asignados.</Text>
         )}
       </View>
+
+      <Modal visible={selectedGroup !== null} animationType="slide">
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>{selectedGroup?.nombre}</Text>
+          <View style={styles.modalSection}>
+            <Text style={styles.modalSectionTitle}>Integrantes:</Text>
+            {groupMembers.length > 0 ? (
+              <FlatList
+                data={groupMembers}
+                renderItem={renderMemberItem}
+                keyExtractor={(item, index) => index.toString()}
+                ItemSeparatorComponent={Divider}
+              />
+            ) : (
+              <Text style={styles.emptyText}>No hay estudiantes en este grupo.</Text>
+            )}
+          </View>
+          <View style={styles.modalSection}>
+            <Text style={styles.modalSectionTitle}>Asignaciones:</Text>
+            {groupAssignments.length > 0 ? (
+              <FlatList
+                data={groupAssignments}
+                renderItem={renderAssignmentItem}
+                keyExtractor={(item) => item.id.toString()}
+                ItemSeparatorComponent={Divider}
+              />
+            ) : (
+              <Text style={styles.emptyText}>No hay asignaciones para este grupo.</Text>
+            )}
+          </View>
+          <TouchableOpacity style={styles.groupMessageButton} onPress={handleGroupMessage}>
+            <FontAwesomeIcon icon={faEnvelope} size={20} color="#fff" style={styles.groupMessageIcon} />
+            <Text style={styles.groupMessageText}>Mensaje Grupal</Text>
+          </TouchableOpacity>
+          <Button mode="contained" onPress={() => setSelectedGroup(null)} style={styles.modalButton}>
+            Cerrar
+          </Button>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -175,6 +261,64 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginTop: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  modalSection: {
+    marginBottom: 20,
+  },
+  modalSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalButton: {
+    marginTop: 20,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  memberName: {
+    fontSize: 16,
+  },
+  assignmentItem: {
+    paddingVertical: 10,
+  },
+  assignmentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  assignmentDescription: {
+    fontSize: 14,
+    color: '#888',
+  },
+  groupMessageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#075eec',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  groupMessageIcon: {
+    marginRight: 8,
+  },
+  groupMessageText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });
 

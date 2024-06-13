@@ -65,7 +65,10 @@ const ProfesorProfile = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Avatar.Icon size={80} icon={() => <Icon name="user" size={40} color="#ffffff" />} />
+        <View style={styles.avatarContainer}>
+          <Avatar.Icon size={80} icon="account-circle" color="#fff" style={styles.avatarIcon} />
+          <Avatar.Image size={80} source={{ uri: profesor?.foto }} style={styles.avatarImage} />
+        </View>
         <Text style={styles.name}>{profesor?.nombre}</Text>
         <Text style={styles.role}>Profesor</Text>
       </View>
@@ -74,10 +77,12 @@ const ProfesorProfile = () => {
 
       <View style={styles.infoContainer}>
         <View style={styles.infoItem}>
+          <Icon name="id-card" size={20} color="#075eec" style={styles.infoIcon} />
           <Text style={styles.infoLabel}>Carné:</Text>
           <Text style={styles.infoValue}>{profesor?.carne}</Text>
         </View>
         <View style={styles.infoItem}>
+          <Icon name="university" size={20} color="#075eec" style={styles.infoIcon} />
           <Text style={styles.infoLabel}>Institución:</Text>
           <Text style={styles.infoValue}>{institucion}</Text>
         </View>
@@ -104,6 +109,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginTop: 10,
+    color: '#000',
   },
   role: {
     fontSize: 16,
@@ -122,6 +128,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  infoIcon: {
+    marginRight: 10,
   },
   infoLabel: {
     fontSize: 16,
@@ -144,6 +153,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatarIcon: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  avatarImage: {
+    position: 'relative',
   },
 });
 
