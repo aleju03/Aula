@@ -1,12 +1,6 @@
-//todo: fix member count
-//rbsheet to router page
-//add quick messaging
-//add assignments quick view
-
 import React, { useState, useRef } from 'react';
 import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { useRouter } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import RBSheet from 'react-native-raw-bottom-sheet';
 
@@ -170,12 +164,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
+  skeletonCard: {
+    flex: 1,
+    marginHorizontal: 5,
+    padding: 15,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  skeletonText: {
+    width: '60%',
+    height: 20,
+    backgroundColor: '#c0c0c0',
+    marginBottom: 10,
+    borderRadius: 4,
+  },
+  skeletonGroupItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    marginVertical: 10,
+  },
+  groupIconSkeleton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#c0c0c0',
+    marginRight: 15,
+  },
+  skeletonGroupText: {
+    flex: 1,
+  },
 });
+
+const SkeletonCard = () => (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonText} />
+    <View style={styles.skeletonText} />
+  </View>
+);
+
+const SkeletonGroupItem = () => (
+  <View style={styles.skeletonGroupItem}>
+    <View style={styles.groupIconSkeleton} />
+    <View style={styles.skeletonGroupText}>
+      <View style={styles.skeletonText} />
+      <View style={styles.skeletonText} />
+    </View>
+  </View>
+);
 
 const ProfesorHome = () => {
   const user = useSelector((state) => state.auth.user);
-  const dispatch = useDispatch();
-  const router = useRouter();
+  const loading = useSelector((state) => state.auth.loading);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const bottomSheetRef = useRef(null);
   const scaleValue = new Animated.Value(1);
@@ -235,6 +278,30 @@ const ProfesorHome = () => {
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
+          <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
+        </View>
+
+        <View style={styles.summaryContainer}>
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+
+        <View style={styles.groupListHeader}>
+          <Text style={styles.groupListTitle}>Tus Grupos</Text>
+        </View>
+
+        <SkeletonGroupItem />
+        <SkeletonGroupItem />
+        <SkeletonGroupItem />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -249,7 +316,7 @@ const ProfesorHome = () => {
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryText}>Total Integrantes</Text>
-          <Text style={styles.summaryValue}>{user?.groups.reduce((acc, group) => acc + group.encargados.length, 0) || 0}</Text>
+          <Text style={styles.summaryValue}>{user?.groups?.reduce((acc, group) => acc + (group.encargados?.length || 0), 0) || 0}</Text>
         </View>
       </View>
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, SafeAreaView, StyleSheet, Image, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { fetchUserData } from '../../utils/authSlice';
+import { fetchEssentialUserData } from '../../utils/authSlice';
 import { db } from '../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -83,15 +83,19 @@ const LoginScreen = () => {
   };
 
   const handleLogin = async () => {
+    if (form.carne === '' || form.contrasena === '') {
+      Alert.alert('Error', 'Todos los campos son obligatorios');
+      return;
+    }
     setLoading(true);
     try {
       const usersCollection = collection(db, 'Usuarios');
-      const querySnapshot = await getDocs(query(usersCollection, where('carne', '==', form.carne), where('contraseña', '==', form.contrasena)));
+      const querySnapshot = await getDocs(query(usersCollection, where('carne', '==', form.carne), where('contrasena', '==', form.contrasena)));
 
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userId = userDoc.id;
-        await dispatch(fetchUserData(userId));
+        await dispatch(fetchEssentialUserData(userId));
       } else {
         Alert.alert('Error', 'Credenciales inválidas');
       }
