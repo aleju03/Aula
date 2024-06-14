@@ -2,6 +2,17 @@ import { createSlice } from '@reduxjs/toolkit';
 import { db } from './firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
+/**
+ * authSlice:
+ * - setUser: Actualiza el estado del usuario con los datos proporcionados.
+ * - setUserRole: Establece el rol del usuario.
+ * - setLoading: Establece el estado de carga (true/false).
+ * - logout: Resetea el estado del usuario y el rol a sus valores iniciales.
+ * 
+ * fetchEssentialUserData: Obtiene y despacha los datos esenciales del usuario. Inicia la carga de datos adicionales en segundo plano.
+ * fetchAdditionalUserData: Obtiene datos adicionales del usuario, como la institución y los grupos, y actualiza el estado del usuario.
+ */
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
@@ -31,6 +42,12 @@ const authSlice = createSlice({
 
 export const { setUser, setUserRole, setLoading, logout } = authSlice.actions;
 
+/**
+ * fetchEssentialUserData:
+ * - Obtiene los datos esenciales del usuario desde Firestore.
+ * - Despacha los datos del usuario y su rol.
+ * - Inicia la carga de datos adicionales en segundo plano.
+ */
 export const fetchEssentialUserData = (userId) => async (dispatch) => {
   dispatch(setLoading(true));
   try {
@@ -47,6 +64,11 @@ export const fetchEssentialUserData = (userId) => async (dispatch) => {
   }
 };
 
+/**
+ * fetchAdditionalUserData:
+ * - Obtiene datos adicionales del usuario como la institución y los grupos.
+ * - Actualiza el estado del usuario con estos datos adicionales.
+ */
 export const fetchAdditionalUserData = (userId) => async (dispatch) => {
   try {
     const userDoc = await getDoc(doc(db, 'Usuarios', userId));

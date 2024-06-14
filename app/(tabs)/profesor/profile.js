@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../../utils/authSlice';
@@ -57,12 +57,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: 20,
   },
+  loadingText: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
 });
 
 const ProfesorProfile = () => {
   const router = useRouter();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const loading = useSelector((state) => state.auth.loading);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -88,12 +93,18 @@ const ProfesorProfile = () => {
 
       <View style={styles.infoRow}>
         <Text style={styles.infoLabel}>Institución:</Text>
-        <Text style={styles.infoText}>{user?.institucion?.nombre}</Text>
+        <Text style={styles.infoText}>
+          {loading && !user?.institucion?.nombre ? (
+            <ActivityIndicator size="small" color="#075eec" />
+          ) : (
+            user?.institucion?.nombre || 'No disponible'
+          )}
+        </Text>
       </View>
 
       <View style={styles.infoRow}>
         <Text style={styles.infoLabel}>Carné:</Text>
-        <Text style={styles.infoText}>{user?.carne}</Text>
+        <Text style={styles.infoText}>{user?.carne || 'No disponible'}</Text>
       </View>
 
       <TouchableOpacity style={styles.button} onPress={showLogoutConfirmation}>
