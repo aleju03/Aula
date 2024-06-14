@@ -1,9 +1,9 @@
 // app/(tabs)/profesor/messages.js
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, Alert, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Button, Alert, FlatList, TouchableOpacity, Modal } from 'react-native';
 import { db } from '../../../utils/firebase';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfesorMessages = () => {
@@ -15,6 +15,8 @@ const ProfesorMessages = () => {
   const [mensaje, setMensaje] = useState('');
   const [tipoComunicacion, setTipoComunicacion] = useState('general');
   const [docenteId, setDocenteId] = useState(null);
+  const [groupModalVisible, setGroupModalVisible] = useState(false);
+  const [typeModalVisible, setTypeModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchDocenteId = async () => {
@@ -27,18 +29,39 @@ const ProfesorMessages = () => {
   }, []);
 
   const fetchGrupos = async (userId) => {
-    const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', userId));
-    const gruposSnapshot = await getDocs(gruposQuery);
-    const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setGrupos(gruposData);
+    try {
+      const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
+      const profesorSnapshot = await getDocs(profesorQuery);
+
+      if (!profesorSnapshot.empty) {
+        const profesorData = profesorSnapshot.docs[0].data();
+        const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', profesorSnapshot.docs[0].ref));
+        const unsubscribeGrupos = onSnapshot(gruposQuery, (gruposSnapshot) => {
+          const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setGrupos(gruposData);
+        });
+      }
+    } catch (error) {
+      console.error('Error al obtener los grupos:', error);
+    }
   };
 
   const fetchEncargados = async (groupId) => {
-    const grupo = grupos.find(g => g.id === groupId);
-    const encargadosPromises = grupo.encargados.map(encargadoRef => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
-    const encargadosSnapshots = await Promise.all(encargadosPromises);
-    const encargadosData = encargadosSnapshots.map(snapshot => snapshot.docs[0].data());
-    setEncargados(encargadosData);
+    try {
+      const grupo = grupos.find(g => g.id === groupId);
+      const encargadosPromises = grupo.encargados.map(encargadoRef => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
+      const encargadosSnapshots = await Promise.all(encargadosPromises);
+      const encargadosData = encargadosSnapshots.map(snapshot => snapshot.docs[0].data());
+      setEncargados(encargadosData);
+    } catch (error) {
+      console.error('Error al obtener los encargados:', error);
+    }
+  };
+
+  const handleGroupPress = (group) => {
+    setSelectedGroup(group);
+    setGroupModalVisible(false);
+    fetchEncargados(group.id);
   };
 
   const handleSendCommunication = async () => {
@@ -63,6 +86,15 @@ const ProfesorMessages = () => {
     }
   };
 
+  const toggleEncargadoSelection = (encargadoId) => {
+    setSelectedEncargados(prev => {
+      if (prev.includes(encargadoId)) {
+        return prev.filter(id => id !== encargadoId);
+      }
+      return [...prev, encargadoId];
+    });
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Enviar Comunicación</Text>
@@ -78,29 +110,70 @@ const ProfesorMessages = () => {
         value={mensaje}
         onChangeText={setMensaje}
       />
-      <View style={styles.picker}>
-        <Picker
-          selectedValue={selectedGroup}
-          onValueChange={(itemValue) => {
-            setSelectedGroup(itemValue);
-            fetchEncargados(itemValue);
-          }}
-        >
-          <Picker.Item label="Seleccionar grupo" value={null} />
-          {grupos.map(grupo => (
-            <Picker.Item key={grupo.id} label={grupo.nombre} value={grupo.id} />
-          ))}
-        </Picker>
-      </View>
-      <View style={styles.picker}>
-        <Picker
-          selectedValue={tipoComunicacion}
-          onValueChange={(itemValue) => setTipoComunicacion(itemValue)}
-        >
-          <Picker.Item label="General" value="general" />
-          <Picker.Item label="Específica" value="especifica" />
-        </Picker>
-      </View>
+      <TouchableOpacity
+        style={styles.selector}
+        onPress={() => setGroupModalVisible(true)}
+      >
+        <Text>{selectedGroup ? selectedGroup.nombre : 'Seleccionar Grupo'}</Text>
+      </TouchableOpacity>
+      <Modal
+        transparent={true}
+        visible={groupModalVisible}
+        onRequestClose={() => setGroupModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <FlatList
+              data={grupos}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleGroupPress(item)}
+                >
+                  <Text>{item.nombre}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <Button title="Cerrar" onPress={() => setGroupModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
+      <TouchableOpacity
+        style={styles.selector}
+        onPress={() => setTypeModalVisible(true)}
+      >
+        <Text>{tipoComunicacion === 'general' ? 'Comunicación General' : 'Comunicación Específica'}</Text>
+      </TouchableOpacity>
+      <Modal
+        transparent={true}
+        visible={typeModalVisible}
+        onRequestClose={() => setTypeModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.modalItem}
+              onPress={() => {
+                setTipoComunicacion('general');
+                setTypeModalVisible(false);
+              }}
+            >
+              <Text>Comunicación General</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalItem}
+              onPress={() => {
+                setTipoComunicacion('especifica');
+                setTypeModalVisible(false);
+              }}
+            >
+              <Text>Comunicación Específica</Text>
+            </TouchableOpacity>
+            <Button title="Cerrar" onPress={() => setTypeModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
       {tipoComunicacion === 'especifica' && (
         <FlatList
           data={encargados}
@@ -108,14 +181,7 @@ const ProfesorMessages = () => {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.encargadoItem}
-              onPress={() => {
-                setSelectedEncargados((prev) => {
-                  if (prev.includes(item.id)) {
-                    return prev.filter(id => id !== item.id);
-                  }
-                  return [...prev, item.id];
-                });
-              }}
+              onPress={() => toggleEncargadoSelection(item.id)}
             >
               <Text style={styles.encargadoText}>{item.nombre}</Text>
               <Text style={styles.encargadoText}>{selectedEncargados.includes(item.id) ? 'Seleccionado' : ''}</Text>
@@ -129,33 +195,15 @@ const ProfesorMessages = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 16,
-  },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-  },
-  picker: {
-    height: 50,
-    marginBottom: 16,
-  },
-  encargadoItem: {
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'gray',
-  },
-  encargadoText: {
-    fontSize: 16,
-  },
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 24, marginBottom: 16 },
+  input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 12, paddingHorizontal: 8 },
+  selector: { height: 40, borderColor: 'gray', borderWidth: 1, justifyContent: 'center', marginBottom: 12, paddingHorizontal: 8 },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: 300, backgroundColor: 'white', borderRadius: 8, padding: 16, alignItems: 'center' },
+  modalItem: { padding: 16, borderBottomWidth: 1, borderBottomColor: 'gray', width: '100%', alignItems: 'center' },
+  encargadoItem: { padding: 8, borderBottomWidth: 1, borderBottomColor: 'gray' },
+  encargadoText: { fontSize: 16 },
 });
 
 export default ProfesorMessages;
