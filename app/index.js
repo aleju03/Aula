@@ -1,28 +1,19 @@
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useRef } from 'react';
+import { Animated } from 'react-native';
 
 export default function App() {
-  const router = useRouter();
+  const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const storedUserRole = await AsyncStorage.getItem('userRole');
-        if (storedUserRole === 'encargado') {
-          router.replace('/(tabs)/encargado', { animation: 'none' });
-        } else if (storedUserRole === 'docente') {
-          router.replace('/(tabs)/profesor', { animation: 'none' });
-        } else {
-          router.replace('/(auth)/login', { animation: 'none' });
-        }
-      } catch (error) {
-        console.error('Error al obtener el rol del usuario:', error);
-      }
-    };
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [opacity]);
 
-    checkUserRole();
-  }, []);
-
-  return null;
+  return (
+    <Animated.View style={{ flex: 1, opacity, backgroundColor: '#fff' }}>
+    </Animated.View>
+  );
 }

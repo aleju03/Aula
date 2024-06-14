@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, SafeAreaView, StyleSheet, Image, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useDispatch } from 'react-redux';
+import { fetchUserData } from '../../utils/authSlice';
 import { db } from '../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// Estilos para los componentes
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -69,75 +68,38 @@ const styles = StyleSheet.create({
   },
 });
 
-// Componente principal de la pantalla de inicio de sesión
 const LoginScreen = () => {
+  const dispatch = useDispatch();
   const [form, setForm] = useState({
     carne: '',
     contrasena: '',
   });
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
-
-  const handleLogin = async () => {
-    if (!form.carne || !form.contrasena) {
-      Alert.alert(
-        'Error',
-        'Por favor, complete todos los campos',
-        [{ text: 'OK' }],
-        { cancelable: false }
-      );
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const carneP = query(collection(db, 'Usuarios'), where('carne', '==', form.carne));
-      const usuario = await getDocs(carneP);
-      if (usuario.empty) {
-        Alert.alert(
-          'Error',
-          'El carné seleccionado no existe',
-          [{ text: 'OK' }],
-          { cancelable: false }
-        );
-      } else {
-        const final = usuario.docs[0].data();
-        if (final.contraseña === form.contrasena) {
-          await AsyncStorage.setItem('userRole', final.rol);
-          await AsyncStorage.setItem('userId', form.carne);
-
-          if (final.rol === 'encargado') {
-            router.replace('/(tabs)/encargado');
-          } else if (final.rol === 'docente') {
-            router.replace('/(tabs)/profesor');
-          }
-        } else {
-          Alert.alert(
-            'Error',
-            'Contraseña incorrecta',
-            [{ text: 'OK' }],
-            { cancelable: false }
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Error al obtener el usuario:', error);
-      Alert.alert(
-        'Error',
-        'Ocurrió un error al obtener el usuario. Por favor, intenta nuevamente.',
-        [{ text: 'OK' }],
-        { cancelable: false }
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCarneChange = (carne) => {
     if (/^\d*$/.test(carne)) {
       setForm({ ...form, carne });
     }
+  };
+
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const usersCollection = collection(db, 'Usuarios');
+      const querySnapshot = await getDocs(query(usersCollection, where('carne', '==', form.carne), where('contraseña', '==', form.contrasena)));
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userId = userDoc.id;
+        await dispatch(fetchUserData(userId));
+      } else {
+        Alert.alert('Error', 'Credenciales inválidas');
+      }
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      Alert.alert('Error', 'Ocurrió un error al iniciar sesión');
+    }
+    setLoading(false);
   };
 
   return (

@@ -25,6 +25,7 @@ export default function EncargadoTabLayout() {
         options={{
           title: 'Inicio',
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={28} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
