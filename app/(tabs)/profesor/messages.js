@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Button, Alert, FlatList, TouchableOpacity, Modal } from 'react-native';
 import { db } from '../../../utils/firebase';
-import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfesorMessages = () => {
@@ -36,10 +36,9 @@ const ProfesorMessages = () => {
       if (!profesorSnapshot.empty) {
         const profesorData = profesorSnapshot.docs[0].data();
         const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', profesorSnapshot.docs[0].ref));
-        const unsubscribeGrupos = onSnapshot(gruposQuery, (gruposSnapshot) => {
-          const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setGrupos(gruposData);
-        });
+        const gruposSnapshot = await getDocs(gruposQuery);
+        const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setGrupos(gruposData);
       }
     } catch (error) {
       console.error('Error al obtener los grupos:', error);
@@ -51,7 +50,10 @@ const ProfesorMessages = () => {
       const grupo = grupos.find(g => g.id === groupId);
       const encargadosPromises = grupo.encargados.map(encargadoRef => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
       const encargadosSnapshots = await Promise.all(encargadosPromises);
-      const encargadosData = encargadosSnapshots.map(snapshot => snapshot.docs[0].data());
+      const encargadosData = encargadosSnapshots.map(snapshot => ({
+        id: snapshot.docs[0].id,
+        ...snapshot.docs[0].data()
+      }));
       setEncargados(encargadosData);
     } catch (error) {
       console.error('Error al obtener los encargados:', error);
@@ -70,7 +72,10 @@ const ProfesorMessages = () => {
       return;
     }
 
-    const destinatarios = tipoComunicacion === 'general' ? encargados.map(enc => enc.id) : selectedEncargados;
+    const destinatarios = tipoComunicacion === 'general' 
+      ? encargados.map(enc => enc.id)
+      : selectedEncargados.map(encargadoId => encargados.find(enc => enc.id === encargadoId).id);
+
     try {
       await addDoc(collection(db, 'Comunicaciones'), {
         titulo,
@@ -207,3 +212,4 @@ const styles = StyleSheet.create({
 });
 
 export default ProfesorMessages;
+
