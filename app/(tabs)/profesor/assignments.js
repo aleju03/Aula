@@ -1,9 +1,27 @@
 import React, {useState} from 'react';
-import {Alert, Modal, StyleSheet, Text, Pressable, View} from 'react-native';
+import {Alert, Modal, StyleSheet, Text, Pressable, View, TextInput} from 'react-native';
+
 
 const ProfesorAssignments = () => {
   
   const [modalVisible, setModalVisible] = useState(false);
+
+  const [form, setForm] = useState({
+    titulo: '',
+    descripcion: '',
+  });
+
+  const handleTitulo = (titulo) => {
+    if (/^\d*$/.test(titulo)) {
+      setForm({ ...form, titulo });
+    }
+  };
+
+  const handleDescripcion = (descripcion) => {
+    if (/^\d*$/.test(descripcion)) {
+      setForm({ ...form, descripcion });
+    }
+  };
 
   return (
     <View style={styles.centeredView}>
@@ -17,13 +35,37 @@ const ProfesorAssignments = () => {
         }}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <Text style={styles.modalText}>Creacion de Asignacion</Text>
+            <Text style={styles.modalTextTop}>Creacion de Asignacion</Text>
 
-            <Text style={styles.modalText}>Grupo</Text>
+            <Text style={styles.label}>Grupo</Text>
 
-            <Text style={styles.modalText}>Nombre de la asignacion</Text>
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Nombre de la Asignacion</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={form.titulo}
+                    onChangeText={handleTitulo}
+                    placeholder="Nombre de la tarea"
+                    placeholderTextColor="#6b7280"
+                    keyboardType="default"
+                  />
+              </View>
+            </View>
 
-            <Text style={styles.modalText}>Descripcion</Text>
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Descripcion</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={form.titulo}
+                    onChangeText={handleDescripcion}
+                    placeholder="Un breve resumen de lo que trata la tarea"
+                    placeholderTextColor="#6b7280"
+                    keyboardType="default"
+                  />
+              </View>
+            </View>
 
             <Text style={styles.modalText}>Fecha de Entrega</Text>
 
@@ -95,6 +137,33 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
+  modalTextTop: {
+    fontSize: 20,
+    color: 'blue',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+    form: {
+    flex: 1,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 1,
+  },
+  input: {
+    height: 40,
+    width: '100%',
+    borderColor: 'gray',
+    borderWidth: 1,
+    paddingLeft: 10,
+    marginBottom: 20,
+  },
+
 });
 
 export default ProfesorAssignments;
