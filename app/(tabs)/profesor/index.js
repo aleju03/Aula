@@ -1,325 +1,364 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Avatar, List, Divider, Card, Title, Paragraph, Button } from 'react-native-paper';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChalkboardTeacher, faEnvelope } from '@fortawesome/free-solid-svg-icons';
-import { MaterialCommunityIcons } from 'react-native-vector-icons';
-import { db } from '../../../utils/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const ProfesorHome = () => {
-  const [profesor, setProfesor] = useState(null);
-  const [grupos, setGrupos] = useState([]);
-  const [totalAsignaciones, setTotalAsignaciones] = useState(0);
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [groupMembers, setGroupMembers] = useState([]);
-  const [groupAssignments, setGroupAssignments] = useState([]);
-
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchProfesorData = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId');
-        const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
-        const unsubscribeProfesor = onSnapshot(profesorQuery, (snapshot) => {
-          if (!snapshot.empty) {
-            const profesorData = snapshot.docs[0].data();
-            setProfesor({ id: snapshot.docs[0].id, ...profesorData });
-
-            const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', snapshot.docs[0].ref));
-            const unsubscribeGrupos = onSnapshot(gruposQuery, (gruposSnapshot) => {
-              const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              setGrupos(gruposData);
-            });
-
-            const asignacionesQuery = query(collection(db, 'Asignaciones'), where('docente', '==', snapshot.docs[0].ref));
-            const unsubscribeAsignaciones = onSnapshot(asignacionesQuery, (asignacionesSnapshot) => {
-              setTotalAsignaciones(asignacionesSnapshot.size);
-            });
-
-            return () => {
-              unsubscribeGrupos();
-              unsubscribeAsignaciones();
-            };
-          }
-        });
-
-        return () => {
-          unsubscribeProfesor();
-        };
-      } catch (error) {
-        console.error('Error al obtener los datos del profesor:', error);
-      }
-    };
-
-    fetchProfesorData();
-  }, []);
-
-  const handleVerAsignaciones = () => {
-    router.push('/profesor/assignments');
-  };
-
-  const handleGroupPress = async (group) => {
-    setSelectedGroup(group);
-
-    const encargadosPromises = group.encargados.map((encargadoRef) => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
-    const encargadosSnapshots = await Promise.all(encargadosPromises);
-    const encargadosData = encargadosSnapshots.map((snapshot) => snapshot.docs[0].data());
-
-    const groupMembersData = encargadosData.flatMap((encargado) => {
-      if (encargado.estudiantes && encargado.estudiantes.length > 0) {
-        return encargado.estudiantes;
-      } else {
-        return { nombre: encargado.nombre };
-      }
-    });
-
-    setGroupMembers(groupMembersData);
-
-    const assignmentsQuery = query(collection(db, 'Asignaciones'), where('grupo', '==', group.id));
-    const assignmentsSnapshot = await getDocs(assignmentsQuery);
-    const assignmentsData = assignmentsSnapshot.docs.map((doc) => doc.data());
-    setGroupAssignments(assignmentsData);
-  };
-
-  const handleMemberMessage = (member) => {
-    // Handle messaging logic for the selected member
-    console.log('Message member:', member);
-  };
-
-  const handleGroupMessage = () => {
-    // Handle messaging logic for the entire group
-    console.log('Message group:', selectedGroup);
-  };
-
-  const renderGrupoItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleGroupPress(item)}>
-      <List.Item
-        title={item.nombre}
-        description={`Integrantes: ${item.encargados.length}`}
-        left={props => <List.Icon {...props} icon={() => <MaterialCommunityIcons name="account-group" size={24} color="#888" />} />}
-      />
-    </TouchableOpacity>
-  );
-
-  const renderMemberItem = ({ item }) => (
-    <View style={styles.memberItem}>
-      <Text style={styles.memberName}>{item.nombre}</Text>
-      <TouchableOpacity onPress={() => handleMemberMessage(item)}>
-        <FontAwesomeIcon icon={faEnvelope} size={20} color="#075eec" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderAssignmentItem = ({ item }) => (
-    <View style={styles.assignmentItem}>
-      <Text style={styles.assignmentTitle}>{item.titulo}</Text>
-      <Text style={styles.assignmentDescription}>{item.descripcion}</Text>
-    </View>
-  );
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Avatar.Icon size={64} icon={() => <FontAwesomeIcon icon={faChalkboardTeacher} size={32} color="#ffffff" />} />
-        <View style={styles.headerContent}>
-          <Text style={styles.welcomeText}>Bienvenido, {profesor?.nombre.split(' ')[0]}</Text>
-          <Text style={styles.subtitleText}>Aquí tienes un resumen de tu actividad.</Text>
-        </View>
-      </View>
-
-      <Card style={styles.card}>
-        <Card.Content>
-          <Title style={styles.cardTitle}>Total de Asignaciones</Title>
-          <Paragraph style={styles.cardValue}>{totalAsignaciones}</Paragraph>
-        </Card.Content>
-        <Card.Actions>
-          <TouchableOpacity style={styles.button} onPress={handleVerAsignaciones}>
-            <Text style={styles.buttonText}>Ver Asignaciones</Text>
-          </TouchableOpacity>
-        </Card.Actions>
-      </Card>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Grupos a Cargo</Text>
-        {grupos.length > 0 ? (
-          <FlatList
-            data={grupos}
-            renderItem={renderGrupoItem}
-            keyExtractor={(item) => item.id.toString()}
-            ItemSeparatorComponent={Divider}
-          />
-        ) : (
-          <Text style={styles.emptyText}>No tienes grupos asignados.</Text>
-        )}
-      </View>
-
-      <Modal visible={selectedGroup !== null} animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>{selectedGroup?.nombre}</Text>
-          <View style={styles.modalSection}>
-            <Text style={styles.modalSectionTitle}>Integrantes:</Text>
-            {groupMembers.length > 0 ? (
-              <FlatList
-                data={groupMembers}
-                renderItem={renderMemberItem}
-                keyExtractor={(item, index) => index.toString()}
-                ItemSeparatorComponent={Divider}
-              />
-            ) : (
-              <Text style={styles.emptyText}>No hay estudiantes en este grupo.</Text>
-            )}
-          </View>
-          <View style={styles.modalSection}>
-            <Text style={styles.modalSectionTitle}>Asignaciones:</Text>
-            {groupAssignments.length > 0 ? (
-              <FlatList
-                data={groupAssignments}
-                renderItem={renderAssignmentItem}
-                keyExtractor={(item) => item.id.toString()}
-                ItemSeparatorComponent={Divider}
-              />
-            ) : (
-              <Text style={styles.emptyText}>No hay asignaciones para este grupo.</Text>
-            )}
-          </View>
-          <TouchableOpacity style={styles.groupMessageButton} onPress={handleGroupMessage}>
-            <FontAwesomeIcon icon={faEnvelope} size={20} color="#fff" style={styles.groupMessageIcon} />
-            <Text style={styles.groupMessageText}>Mensaje Grupal</Text>
-          </TouchableOpacity>
-          <Button mode="contained" onPress={() => setSelectedGroup(null)} style={styles.modalButton}>
-            Cerrar
-          </Button>
-        </View>
-      </Modal>
-    </View>
-  );
-};
+import React, { useState, useRef } from 'react';
+import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
+import { useSelector } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
+import RBSheet from 'react-native-raw-bottom-sheet';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 20,
+    paddingTop: 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 20,
   },
-  headerContent: {
-    marginLeft: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
     marginBottom: 5,
   },
-  subtitleText: {
-    fontSize: 16,
-    color: '#888',
+  subtitle: {
+    fontSize: 18,
+    color: '#4B5563',
+    marginBottom: 15,
   },
-  card: {
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  summaryCard: {
+    flex: 1,
+    marginHorizontal: 5,
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+    alignItems: 'center',
   },
-  cardValue: {
+  summaryText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  summaryValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#075eec',
-    lineHeight: 30,
+    fontWeight: '700',
+    color: '#4F46E5',
   },
-  button: {
-    backgroundColor: '#075eec',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+  groupListHeader: {
+    marginBottom: 10,
+  },
+  groupListTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  groupItem: {
+    marginVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+    padding: 20,
+    transform: [{ scale: 1 }],
+  },
+  groupContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 15,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  modalContainer: {
+  groupText: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
   },
-  modalTitle: {
+  groupName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 3,
+  },
+  groupInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  iconContainer: {
+    marginLeft: 10,
+  },
+  icon: {
     fontSize: 24,
-    fontWeight: 'bold',
+    color: '#6B7280',
+  },
+  bottomSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 40,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  bottomSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
-  modalSection: {
+  bottomSheetTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  bottomSheetCloseButton: {
+    padding: 5,
+  },
+  bottomSheetCloseIcon: {
+    fontSize: 28,
+    color: '#6B7280',
+  },
+  memberList: {
     marginBottom: 20,
-  },
-  modalSectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  modalButton: {
-    marginTop: 20,
   },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  memberIcon: {
+    fontSize: 24,
+    color: '#6B7280',
+    marginRight: 10,
   },
   memberName: {
     fontSize: 16,
+    color: '#1F2937',
   },
-  assignmentItem: {
-    paddingVertical: 10,
+  skeletonCard: {
+    flex: 1,
+    marginHorizontal: 5,
+    padding: 15,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    alignItems: 'center',
   },
-  assignmentTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  skeletonText: {
+    width: '60%',
+    height: 20,
+    backgroundColor: '#c0c0c0',
+    marginBottom: 10,
+    borderRadius: 4,
   },
-  assignmentDescription: {
-    fontSize: 14,
-    color: '#888',
-  },
-  groupMessageButton: {
+  skeletonGroupItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#075eec',
-    borderRadius: 8,
-    paddingVertical: 10,
-    marginBottom: 20,
+    padding: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    marginVertical: 10,
   },
-  groupMessageIcon: {
-    marginRight: 8,
+  groupIconSkeleton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#c0c0c0',
+    marginRight: 15,
   },
-  groupMessageText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+  skeletonGroupText: {
+    flex: 1,
   },
 });
+
+const SkeletonCard = () => (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonText} />
+    <View style={styles.skeletonText} />
+  </View>
+);
+
+const SkeletonGroupItem = () => (
+  <View style={styles.skeletonGroupItem}>
+    <View style={styles.groupIconSkeleton} />
+    <View style={styles.skeletonGroupText}>
+      <View style={styles.skeletonText} />
+      <View style={styles.skeletonText} />
+    </View>
+  </View>
+);
+
+const ProfesorHome = () => {
+  const user = useSelector((state) => state.auth.user);
+  const loading = useSelector((state) => state.auth.loading);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const bottomSheetRef = useRef(null);
+  const scaleValue = new Animated.Value(1);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleValue, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleGroupPress = (group) => {
+    setSelectedGroup(group);
+    bottomSheetRef.current.open();
+  };
+
+  const closeBottomSheet = () => {
+    bottomSheetRef.current.close();
+    setSelectedGroup(null);
+  };
+
+  const renderGroupItem = ({ item }) => (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={() => handleGroupPress(item)}
+    >
+      <Animated.View style={[styles.groupItem, { transform: [{ scale: scaleValue }] }]}>
+        <View style={styles.groupContent}>
+          <View style={styles.groupIcon}>
+            <Ionicons name="people" size={28} color="#1F2937" />
+          </View>
+          <View style={styles.groupText}>
+            <Text style={styles.groupName}>{item.nombre}</Text>
+            <Text style={styles.groupInfo}>Integrantes: {item.encargados.length}</Text>
+          </View>
+          <View style={styles.iconContainer}>
+            <Ionicons name="chevron-forward" style={styles.icon} />
+          </View>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+
+  const renderMemberItem = (member, index) => (
+    <View key={index} style={styles.memberItem}>
+      <Ionicons name="person" style={styles.memberIcon} />
+      <Text style={styles.memberName}>{member.nombre}</Text>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
+          <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
+        </View>
+
+        <View style={styles.summaryContainer}>
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+
+        <View style={styles.groupListHeader}>
+          <Text style={styles.groupListTitle}>Tus Grupos</Text>
+        </View>
+
+        <SkeletonGroupItem />
+        <SkeletonGroupItem />
+        <SkeletonGroupItem />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
+        <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
+      </View>
+
+      <View style={styles.summaryContainer}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryText}>Total Grupos</Text>
+          <Text style={styles.summaryValue}>{user?.groups?.length || 0}</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryText}>Total Integrantes</Text>
+          <Text style={styles.summaryValue}>{user?.groups?.reduce((acc, group) => acc + (group.encargados?.length || 0), 0) || 0}</Text>
+        </View>
+      </View>
+
+      <View style={styles.groupListHeader}>
+        <Text style={styles.groupListTitle}>Tus Grupos</Text>
+      </View>
+
+      <FlatList
+        data={user?.groups || []}
+        renderItem={renderGroupItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      />
+
+      <RBSheet
+        ref={bottomSheetRef}
+        height={500}
+        openDuration={250}
+        closeOnDragDown={true}
+        closeOnPressMask={true}
+        customStyles={{
+          container: styles.bottomSheet,
+        }}
+      >
+        <View style={styles.bottomSheetHeader}>
+          <Text style={styles.bottomSheetTitle}>{selectedGroup?.nombre}</Text>
+          <TouchableOpacity style={styles.bottomSheetCloseButton} onPress={closeBottomSheet}>
+            <Ionicons name="close" style={styles.bottomSheetCloseIcon} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.memberList}>
+          {selectedGroup?.encargados.flatMap((encargado) => {
+            if (encargado.estudiantes && encargado.estudiantes.length > 0) {
+              return encargado.estudiantes.map(renderMemberItem);
+            } else {
+              return renderMemberItem(encargado, encargado.id);
+            }
+          })}
+        </View>
+      </RBSheet>
+    </View>
+  );
+};
 
 export default ProfesorHome;

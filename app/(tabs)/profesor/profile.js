@@ -1,53 +1,72 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Avatar, Divider } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import React from 'react';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '../../../utils/firebase';
-import { collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../../../utils/authSlice';
+import { MaterialIcons } from '@expo/vector-icons';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f4f4f8',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  infoLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  button: {
+    backgroundColor: '#075eec',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  icon: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
+  },
+  avatar: {
+    alignSelf: 'center',
+    marginVertical: 20,
+  },
+});
 
 const ProfesorProfile = () => {
-  const [profesor, setProfesor] = useState(null);
-  const [institucion, setInstitucion] = useState('');
-
   const router = useRouter();
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
 
-  useEffect(() => {
-    const fetchProfesorData = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId');
-        const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
-        const profesorSnapshot = await getDocs(profesorQuery);
-
-        if (!profesorSnapshot.empty) {
-          const profesorData = profesorSnapshot.docs[0].data();
-          setProfesor(profesorData);
-
-          const institucionRef = profesorData.institucion;
-          if (institucionRef) {
-            const institucionDoc = await getDoc(institucionRef);
-            if (institucionDoc.exists()) {
-              const institucionData = institucionDoc.data();
-              setInstitucion(institucionData.nombre);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error al obtener los datos del profesor:', error);
-      }
-    };
-
-    fetchProfesorData();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem('userId');
-      router.replace('/login');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
+  const handleLogout = () => {
+    dispatch(logout());
+    router.replace('/(auth)/login');
   };
 
   const showLogoutConfirmation = () => {
@@ -63,109 +82,25 @@ const ProfesorProfile = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <Avatar.Icon size={80} icon="account-circle" color="#fff" style={styles.avatarIcon} />
-          <Avatar.Image size={80} source={{ uri: profesor?.foto }} style={styles.avatarImage} />
-        </View>
-        <Text style={styles.name}>{profesor?.nombre}</Text>
-        <Text style={styles.role}>Profesor</Text>
+    <ScrollView style={styles.container}>
+      <MaterialIcons name="account-circle" size={120} color="#075eec" style={styles.avatar} />
+      <Text style={styles.title}>{user?.nombre}</Text>
+
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>Institución:</Text>
+        <Text style={styles.infoText}>{user?.institucion?.nombre}</Text>
       </View>
 
-      <Divider style={styles.divider} />
-
-      <View style={styles.infoContainer}>
-        <View style={styles.infoItem}>
-          <Icon name="id-card" size={20} color="#075eec" style={styles.infoIcon} />
-          <Text style={styles.infoLabel}>Carné:</Text>
-          <Text style={styles.infoValue}>{profesor?.carne}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Icon name="university" size={20} color="#075eec" style={styles.infoIcon} />
-          <Text style={styles.infoLabel}>Institución:</Text>
-          <Text style={styles.infoValue}>{institucion}</Text>
-        </View>
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>Carné:</Text>
+        <Text style={styles.infoText}>{user?.carne}</Text>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={showLogoutConfirmation}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+      <TouchableOpacity style={styles.button} onPress={showLogoutConfirmation}>
+        <Text style={styles.buttonText}>Cerrar Sesión</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
-    color: '#000',
-  },
-  role: {
-    fontSize: 16,
-    color: '#888',
-  },
-  divider: {
-    marginBottom: 20,
-  },
-  infoContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  infoIcon: {
-    marginRight: 10,
-  },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 10,
-    width: 100,
-  },
-  infoValue: {
-    fontSize: 16,
-    flex: 1,
-  },
-  logoutButton: {
-    backgroundColor: '#075eec',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatarIcon: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    zIndex: 1,
-  },
-  avatarImage: {
-    position: 'relative',
-  },
-});
 
 export default ProfesorProfile;
