@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
+import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -146,16 +146,6 @@ const styles = StyleSheet.create({
   skeletonGroupText: {
     flex: 1,
   },
-  refreshButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 1,
-  },
-  refreshIcon: {
-    fontSize: 24,
-    color: '#1F2937',
-  },
 });
 
 const SkeletonCard = () => (
@@ -180,14 +170,19 @@ const ProfesorHome = () => {
   const loading = useSelector((state) => state.auth.loading);
   const dispatch = useDispatch();
   const router = useRouter();
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const handleRefresh = () => {
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
     if (user && user.id) {
-      dispatch(fetchAdditionalUserData(user.id));
+      dispatch(fetchAdditionalUserData(user.id)).then(() => {
+        setRefreshing(false);
+      });
     } else {
       console.error('User ID not found');
+      setRefreshing(false);
     }
-  };
+  }, [user, dispatch]);
 
   const handleGroupPress = (group) => {
     router.push({
@@ -254,33 +249,6 @@ const ProfesorHome = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-          <Ionicons name="refresh" style={styles.refreshIcon} />
-        </TouchableOpacity>
-        <View style={styles.header}>
-          <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
-          <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
-        </View>
-
-        <View style={styles.summaryContainer}>
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-
-        <View style={styles.groupListHeader}>
-          <Text style={styles.groupListTitle}>Tus Grupos</Text>
-        </View>
-
-        <SkeletonGroupItem />
-        <SkeletonGroupItem />
-        <SkeletonGroupItem />
-      </View>
-    );
-  }
-
   const totalIntegrantes = user?.groups?.reduce((acc, group) => {
     let count = 0;
     group.encargados.forEach((encargado) => {
@@ -295,36 +263,63 @@ const ProfesorHome = () => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-        <Ionicons name="refresh" style={styles.refreshIcon} />
-      </TouchableOpacity>
-      <View style={styles.header}>
-        <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
-        <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
-      </View>
-
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <Ionicons name="people" size={28} color="#4F46E5" />
-          <Text style={styles.summaryText}>Total Grupos</Text>
-          <Text style={styles.summaryValue}>{user?.groups?.length || 0}</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Ionicons name="person" size={28} color="#4F46E5" />
-          <Text style={styles.summaryText}>Total Integrantes</Text>
-          <Text style={styles.summaryValue}>{totalIntegrantes}</Text>
-        </View>
-      </View>
-
-      <View style={styles.groupListHeader}>
-        <Text style={styles.groupListTitle}>Tus Grupos</Text>
-      </View>
-
       <FlatList
         data={user?.groups || []}
         renderItem={renderGroupItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
+        ListHeaderComponent={
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
+              <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
+            </View>
+
+            <View style={styles.summaryContainer}>
+              {loading ? (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
+              ) : (
+                <>
+                  <View style={styles.summaryCard}>
+                    <Ionicons name="people" size={28} color="#4F46E5" />
+                    <Text style={styles.summaryText}>Total Grupos</Text>
+                    <Text style={styles.summaryValue}>{user?.groups?.length || 0}</Text>
+                  </View>
+                  <View style={styles.summaryCard}>
+                    <Ionicons name="person" size={28} color="#4F46E5" />
+                    <Text style={styles.summaryText}>Total Integrantes</Text>
+                    <Text style={styles.summaryValue}>{totalIntegrantes}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <View style={styles.groupListHeader}>
+              <Text style={styles.groupListTitle}>Tus Grupos</Text>
+            </View>
+          </>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1F2937"
+            colors={['#1F2937']}
+            progressBackgroundColor="#F3F4F6"
+          />
+        }
+        ListFooterComponent={
+          loading && (
+            <>
+              <SkeletonGroupItem />
+              <SkeletonGroupItem />
+              <SkeletonGroupItem />
+            </>
+          )
+        }
       />
     </View>
   );

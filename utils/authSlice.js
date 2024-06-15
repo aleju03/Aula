@@ -88,7 +88,7 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       const groupsQuery = query(
         collection(db, 'Grupos'),
         where('docente', '==', doc(db, 'Usuarios', userId)),
-        limit(10) // Adjust limit as needed
+        limit(10)
       );
       const groupsSnapshotPromise = getDocs(groupsQuery);
 
