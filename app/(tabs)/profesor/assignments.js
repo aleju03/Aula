@@ -1,9 +1,9 @@
 
-import React, {useState, useEffect} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Alert, Modal, StyleSheet, Text, Pressable, View, TextInput} from 'react-native';
+import React, {useState} from 'react';
+import {Alert, TouchableOpacity, Modal, Button, StyleSheet,FlatList, Text, Pressable, View, TextInput} from 'react-native';
+import { useSelector } from 'react-redux';
 import { db } from '../../../utils/firebase';
-import { collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 
 const styles = StyleSheet.create({
@@ -51,6 +51,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
+  modalItem: { 
+    padding: 16, 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'gray', 
+    width: '100%', 
+    alignItems: 'center' 
+  },
   modalTextTop: {
     fontSize: 20,
     color: 'blue',
@@ -77,50 +84,57 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     marginBottom: 20,
   },
-
+  selector: { 
+    height: 40, 
+    borderColor: 'gray', 
+    borderWidth: 1, 
+    justifyContent: 'center', 
+    marginBottom: 12, 
+    paddingHorizontal: 8 
+  },
 });
 
 const ProfesorAssignments = () => {
   
   const [modalVisible, setModalVisible] = useState(false);
-  const [asignaciones, setAsignaciones] = useState([]);
-  const [profesor, setProfesor] = useState('');
-
-  useEffect(() => {
-    const fetchProfesorData = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId');
-        const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
-        const profesorSnapshot = await getDocs(profesorQuery);
-
-        if (!profesorSnapshot.empty) {
-          const profesorData = profesorSnapshot.docs[0].data();
-          setProfesor(profesorData);
-          alert(profesorData);
-        }
-      } catch (error) {
-        console.error('Error al obtener los datos del profesor:', error);
-      }
-    };
-
-    fetchProfesorData();
-  }, []);
+  const user = useSelector((state) => state.auth.user);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupModalVisible, setGroupModalVisible] = useState(false);
+  const [titulo, setTitulo] = useState('');  
+  const [descripcion, setDescripcion] = useState('');
+  const [groupId, setGroupId] = useState('');
 
   const [form, setForm] = useState({
     titulo: '',
     descripcion: '',
   });
 
-  const handleTitulo = (text) => {
-    console.log(form.titulo);
-    setForm((prevForm) => ({ ...prevForm, titulo: text }));
+  const handleGroupPress = (group) => {
+    setSelectedGroup(group);
+    setGroupModalVisible(false);
   };
 
-  const handleDescripcion = (text) => {
-    console.log(form.descripcion);
-    setForm((prevForm) => ({ ...prevForm, descripcion: text }));
-  };
+  const handleCreateAssignment = async () => {
+    if (!titulo || !descripcion || !selectedGroup) {
+      Alert.alert('Error', 'Por favor complete todos los campos');
+      return;
+    }
 
+    try {
+      
+      await addDoc(collection(db, 'Asignaciones'), {
+        archivos_adjuntos: '',
+        descripcion,
+        fecha_entrega: new Date(),
+        grupo: '/Grupos/' + selectedGroup.id,
+        titulo,
+      });
+      setModalVisible(!modalVisible);
+      Alert.alert('Éxito', 'Se creo la asignacion');
+    } catch (error) {
+      Alert.alert('Error', 'Ocurrió un error al crear la asignacion');
+    }
+  };
   return (
     <View style={styles.centeredView}>
       <Modal
@@ -137,27 +151,61 @@ const ProfesorAssignments = () => {
 
             <Text style={styles.label}>Grupo</Text>
 
+            <TouchableOpacity
+        style={styles.selector}
+        onPress={() => setGroupModalVisible(true)}
+      >
+        <Text>{selectedGroup ? selectedGroup.nombre : 'Seleccionar Grupo'}</Text>
+      </TouchableOpacity>
+        <Modal
+                transparent={true}
+                visible={groupModalVisible}
+                onRequestClose={() => setGroupModalVisible(false)}
+             >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <FlatList
+              data={user?.groups || []}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleGroupPress(item)}
+                >
+                  <Text>{item.nombre}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <Button title="Cerrar" onPress={() => setGroupModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
+
+            
+
+            <Text style={styles.label}>Nombre</Text>
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Nombre de la Asignacion</Text>
+                
                   <TextInput
                     style={styles.input}
-                    value={form.titulo}
-                    onChangeText={handleTitulo}
+                    value={titulo}
+                    onChangeText={setTitulo}
                     placeholder="Nombre de la tarea"
                     placeholderTextColor="#6b7280"
                     keyboardType="default"
                   />
+
               </View>
             </View>
 
+            <Text style={styles.label}>Descripcion</Text>
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Descripcion</Text>
                   <TextInput
                     style={styles.input}
-                    value={form.descripcion}
-                    onChangeText={handleDescripcion}
+                    value={descripcion}
+                    onChangeText={setDescripcion}
                     placeholder="Un breve resumen de lo que trata la tarea"
                     placeholderTextColor="#6b7280"
                     keyboardType="default"
@@ -165,7 +213,7 @@ const ProfesorAssignments = () => {
               </View>
             </View>
 
-            <Text style={styles.modalText}>Fecha de Entrega</Text>
+            <Text style={styles.label}>Fecha de Entrega</Text>
 
             <Pressable
               style={[styles.button, styles.buttonClose]}
@@ -175,7 +223,7 @@ const ProfesorAssignments = () => {
 
             <Pressable
               style={[styles.button, styles.buttonConfirm]}
-              onPress={() => setModalVisible(!modalVisible)}>
+              onPress={() => handleCreateAssignment()}>
               <Text style={styles.textStyle}>Confirmar</Text>
             </Pressable>
           </View>
