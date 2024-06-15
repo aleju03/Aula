@@ -21,25 +21,25 @@ const ProfesorMessages = () => {
   useEffect(() => {
     const fetchDocenteId = async () => {
       const userId = await AsyncStorage.getItem('userId');
-      setDocenteId(userId);
-      fetchGrupos(userId);
+      const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
+      const profesorSnapshot = await getDocs(profesorQuery);
+      if (!profesorSnapshot.empty) {
+        const profesorDocId = profesorSnapshot.docs[0].id;
+        setDocenteId(profesorDocId);
+        fetchGrupos(profesorDocId);
+      }
     };
 
     fetchDocenteId();
   }, []);
 
-  const fetchGrupos = async (userId) => {
+  const fetchGrupos = async (profesorDocId) => {
     try {
-      const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
-      const profesorSnapshot = await getDocs(profesorQuery);
-
-      if (!profesorSnapshot.empty) {
-        const profesorData = profesorSnapshot.docs[0].data();
-        const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', profesorSnapshot.docs[0].ref));
-        const gruposSnapshot = await getDocs(gruposQuery);
-        const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setGrupos(gruposData);
-      }
+      const profesorRef = collection(db, 'Usuarios').doc(profesorDocId);
+      const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', profesorRef));
+      const gruposSnapshot = await getDocs(gruposQuery);
+      const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setGrupos(gruposData);
     } catch (error) {
       console.error('Error al obtener los grupos:', error);
     }
@@ -72,6 +72,11 @@ const ProfesorMessages = () => {
       return;
     }
 
+    if (tipoComunicacion === 'especifica' && selectedEncargados.length === 0) {
+      Alert.alert('Error', 'Debe seleccionar al menos un encargado para una comunicación específica');
+      return;
+    }
+
     const destinatarios = tipoComunicacion === 'general' 
       ? encargados.map(enc => enc.id)
       : selectedEncargados.map(encargadoId => encargados.find(enc => enc.id === encargadoId).id);
@@ -81,7 +86,7 @@ const ProfesorMessages = () => {
         titulo,
         mensaje,
         fecha_envío: new Date(),
-        remitente: docenteId,
+        remitente: docenteId, // Enviar el ID del documento del profesor
         destinatarios,
         tipo_comunicación: tipoComunicacion,
       });
@@ -212,4 +217,3 @@ const styles = StyleSheet.create({
 });
 
 export default ProfesorMessages;
-
