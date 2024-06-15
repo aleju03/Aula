@@ -33,6 +33,7 @@ export default function ProfesorTabLayout() {
         options={{
           title: 'Asignaciones',
           tabBarIcon: ({ color }) => <Ionicons name="document-text" size={28} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
