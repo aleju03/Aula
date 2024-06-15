@@ -271,7 +271,7 @@ const ProfesorHome = () => {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
+              <Text style={styles.title}>Bienvenido, {user?.nombre?.split(' ')[0]}.</Text>
               <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
             </View>
 
