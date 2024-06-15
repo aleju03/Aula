@@ -1,16 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { db } from './firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 /**
  * authSlice:
- * - setUser: Actualiza el estado del usuario con los datos proporcionados.
- * - setUserRole: Establece el rol del usuario.
- * - setLoading: Establece el estado de carga (true/false).
- * - logout: Resetea el estado del usuario y el rol a sus valores iniciales.
+ * - setUser: Updates the user state with provided data.
+ * - setUserRole: Sets the user role.
+ * - setLoading: Sets the loading state (true/false).
+ * - logout: Resets the user state and role to initial values.
  * 
- * fetchEssentialUserData: Obtiene y despacha los datos esenciales del usuario. Inicia la carga de datos adicionales en segundo plano.
- * fetchAdditionalUserData: Obtiene datos adicionales del usuario, como la institución y los grupos, y actualiza el estado del usuario.
+ * fetchEssentialUserData: Fetches and dispatches essential user data. Initiates additional data loading in the background.
+ * fetchAdditionalUserData: Fetches additional user data like institution and groups, and updates the user state.
  */
 
 const authSlice = createSlice({
@@ -44,9 +44,9 @@ export const { setUser, setUserRole, setLoading, logout } = authSlice.actions;
 
 /**
  * fetchEssentialUserData:
- * - Obtiene los datos esenciales del usuario desde Firestore.
- * - Despacha los datos del usuario y su rol.
- * - Inicia la carga de datos adicionales en segundo plano.
+ * - Fetches essential user data from Firestore.
+ * - Dispatches user data and role.
+ * - Initiates additional data loading in the background.
  */
 export const fetchEssentialUserData = (userId) => async (dispatch) => {
   dispatch(setLoading(true));
@@ -56,18 +56,21 @@ export const fetchEssentialUserData = (userId) => async (dispatch) => {
       const userData = userDoc.data();
       dispatch(setUser(userData));
       dispatch(setUserRole(userData.rol));
-      // Carga datos adicionales en segundo plano
+      // Fetch additional data in the background
       dispatch(fetchAdditionalUserData(userId));
+    } else {
+      throw new Error('User does not exist');
     }
   } catch (error) {
-    console.error('Error al obtener los datos esenciales del usuario:', error);
+    console.error('Error fetching essential user data:', error);
+    dispatch(setLoading(false));
   }
 };
 
 /**
  * fetchAdditionalUserData:
- * - Obtiene datos adicionales del usuario como la institución y los grupos.
- * - Actualiza el estado del usuario con estos datos adicionales.
+ * - Fetches additional user data like institution and groups with pagination.
+ * - Updates the user state with this additional data.
  */
 export const fetchAdditionalUserData = (userId) => async (dispatch) => {
   try {
@@ -76,8 +79,15 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       const userData = userDoc.data();
       const institucionId = userData.institucion.id;
 
+      // Fetch institution data
       const institucionPromise = getDoc(doc(db, 'Instituciones', institucionId));
-      const groupsQuery = query(collection(db, 'Grupos'), where('docente', '==', doc(db, 'Usuarios', userId)));
+
+      // Fetch groups with pagination (e.g., 10 groups at a time)
+      const groupsQuery = query(
+        collection(db, 'Grupos'),
+        where('docente', '==', doc(db, 'Usuarios', userId)),
+        limit(10) // Adjust limit as needed
+      );
       const groupsSnapshotPromise = getDocs(groupsQuery);
 
       const [institucionDoc, groupsSnapshot] = await Promise.all([institucionPromise, groupsSnapshotPromise]);
@@ -102,8 +112,8 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       });
 
       const encargadosDocs = await Promise.all(encargadosPromises);
-
       const encargadosData = encargadosDocs.map(encargadoDoc => ({ id: encargadoDoc.id, ...encargadoDoc.data() }));
+
       groupsData.forEach(group => {
         group.encargados = encargadosData.filter(encargado => group.encargados.some(ref => ref.id === encargado.id));
       });
@@ -114,7 +124,7 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       dispatch(setLoading(false));
     }
   } catch (error) {
-    console.error('Error al obtener los datos adicionales del usuario:', error);
+    console.error('Error fetching additional user data:', error);
     dispatch(setLoading(false));
   }
 };

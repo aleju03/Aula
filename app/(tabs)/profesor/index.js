@@ -247,29 +247,40 @@ const ProfesorHome = () => {
     setSelectedGroup(null);
   };
 
-  const renderGroupItem = ({ item }) => (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={() => handleGroupPress(item)}
-    >
-      <Animated.View style={[styles.groupItem, { transform: [{ scale: scaleValue }] }]}>
-        <View style={styles.groupContent}>
-          <View style={styles.groupIcon}>
-            <Ionicons name="people" size={28} color="#1F2937" />
+  const renderGroupItem = ({ item }) => {
+    const encargadosCount = item.encargados.reduce((sum, encargado) => {
+      const hasStudents = encargado.estudiantes && encargado.estudiantes.length > 0;
+      return sum + (hasStudents ? 0 : 1);
+    }, 0);
+    const estudiantesCount = item.encargados.reduce((sum, encargado) => {
+      return sum + (encargado.estudiantes && encargado.estudiantes.length > 0 ? encargado.estudiantes.length : 0);
+    }, 0);
+    const totalIntegrantes = encargadosCount + estudiantesCount;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => handleGroupPress(item)}
+      >
+        <Animated.View style={[styles.groupItem, { transform: [{ scale: scaleValue }] }]}>
+          <View style={styles.groupContent}>
+            <View style={styles.groupIcon}>
+              <Ionicons name="people" size={28} color="#1F2937" />
+            </View>
+            <View style={styles.groupText}>
+              <Text style={styles.groupName}>{item.nombre}</Text>
+              <Text style={styles.groupInfo}>Integrantes: {totalIntegrantes}</Text>
+            </View>
+            <View style={styles.iconContainer}>
+              <Ionicons name="chevron-forward" style={styles.icon} />
+            </View>
           </View>
-          <View style={styles.groupText}>
-            <Text style={styles.groupName}>{item.nombre}</Text>
-            <Text style={styles.groupInfo}>Integrantes: {item.encargados.length}</Text>
-          </View>
-          <View style={styles.iconContainer}>
-            <Ionicons name="chevron-forward" style={styles.icon} />
-          </View>
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
-  );
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderMemberItem = (member, index) => (
     <View key={index} style={styles.memberItem}>
@@ -302,6 +313,17 @@ const ProfesorHome = () => {
     );
   }
 
+  const totalIntegrantes = user?.groups?.reduce((acc, group) => {
+    const encargadosCount = group.encargados.reduce((sum, encargado) => {
+      const hasStudents = encargado.estudiantes && encargado.estudiantes.length > 0;
+      return sum + (hasStudents ? 0 : 1);
+    }, 0);
+    const estudiantesCount = group.encargados.reduce((sum, encargado) => {
+      return sum + (encargado.estudiantes && encargado.estudiantes.length > 0 ? encargado.estudiantes.length : 0);
+    }, 0);
+    return acc + encargadosCount + estudiantesCount;
+  }, 0) || 0;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -316,7 +338,7 @@ const ProfesorHome = () => {
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryText}>Total Integrantes</Text>
-          <Text style={styles.summaryValue}>{user?.groups?.reduce((acc, group) => acc + (group.encargados?.length || 0), 0) || 0}</Text>
+          <Text style={styles.summaryValue}>{totalIntegrantes}</Text>
         </View>
       </View>
 
