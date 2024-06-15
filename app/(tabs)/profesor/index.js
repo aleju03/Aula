@@ -177,7 +177,7 @@ const ProfesorHome = () => {
 
   const renderGroupItem = ({ item }) => {
     const scaleValue = new Animated.Value(1);
-
+  
     const handlePressIn = () => {
       Animated.spring(scaleValue, {
         toValue: 0.95,
@@ -185,7 +185,7 @@ const ProfesorHome = () => {
         speed: 20,
       }).start();
     };
-
+  
     const handlePressOut = () => {
       Animated.spring(scaleValue, {
         toValue: 1,
@@ -193,20 +193,21 @@ const ProfesorHome = () => {
         speed: 20,
       }).start();
     };
-
-    const uniqueMembers = new Set();
-
-    item.encargados.forEach((encargado) => {
-      uniqueMembers.add(encargado.id);
-      if (encargado.estudiantes) {
-        encargado.estudiantes.forEach((estudiante) => {
-          uniqueMembers.add(estudiante.id);
-        });
-      }
-    });
-
-    const totalIntegrantes = uniqueMembers.size;
-
+  
+    const countMembers = (encargados) => {
+      let count = 0;
+      encargados.forEach((encargado) => {
+        if (encargado.estudiantes && encargado.estudiantes.length > 0) {
+          count += encargado.estudiantes.length;
+        } else {
+          count += 1;
+        }
+      });
+      return count;
+    };
+  
+    const totalIntegrantes = countMembers(item.encargados);
+  
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -258,18 +259,15 @@ const ProfesorHome = () => {
   }
 
   const totalIntegrantes = user?.groups?.reduce((acc, group) => {
-    const uniqueMembers = new Set();
-
+    let count = 0;
     group.encargados.forEach((encargado) => {
-      uniqueMembers.add(encargado.id);
-      if (encargado.estudiantes) {
-        encargado.estudiantes.forEach((estudiante) => {
-          uniqueMembers.add(estudiante.id);
-        });
+      if (encargado.estudiantes && encargado.estudiantes.length > 0) {
+        count += encargado.estudiantes.length;
+      } else {
+        count += 1;
       }
     });
-
-    return acc + uniqueMembers.size;
+    return acc + count;
   }, 0) || 0;
 
   return (

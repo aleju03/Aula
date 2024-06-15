@@ -113,9 +113,9 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
 
       const encargadosDocs = await Promise.all(encargadosPromises);
       const encargadosData = encargadosDocs.map(encargadoDoc => ({ id: encargadoDoc.id, ...encargadoDoc.data() }));
-
+      
       groupsData.forEach(group => {
-        group.encargados = encargadosData.filter(encargado => group.encargados.some(ref => ref.id === encargado.id));
+        group.encargados = group.encargados.map(encargadoRef => encargadosData.find(encargado => encargado.id === encargadoRef.id));
       });
 
       userData.groups = groupsData;
