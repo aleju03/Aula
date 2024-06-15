@@ -17,6 +17,7 @@ const authSlice = createSlice({
   name: 'auth',
   initialState: {
     user: {
+      id: null,
       groups: []
     },
     userRole: null,
@@ -33,7 +34,7 @@ const authSlice = createSlice({
       state.loading = action.payload;
     },
     logout: (state) => {
-      state.user = { groups: [] };
+      state.user = { id: null, groups: [] }; // Reset ID aquí
       state.userRole = null;
       state.loading = false;
     },
@@ -54,6 +55,7 @@ export const fetchEssentialUserData = (userId) => async (dispatch) => {
     const userDoc = await getDoc(doc(db, 'Usuarios', userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
+      userData.id = userId; // Añadir el ID al userData
       dispatch(setUser(userData));
       dispatch(setUserRole(userData.rol));
       // Fetch additional data in the background
@@ -119,6 +121,7 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       });
 
       userData.groups = groupsData;
+      userData.id = userId;
 
       dispatch(setUser(userData));
       dispatch(setLoading(false));

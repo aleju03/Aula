@@ -1,8 +1,9 @@
 import React from 'react';
 import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { fetchAdditionalUserData } from '../../../utils/authSlice';
 
 const styles = StyleSheet.create({
   container: {
@@ -49,6 +50,7 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 16,
     color: '#1F2937',
+    marginBottom: 5,
   },
   summaryValue: {
     fontSize: 24,
@@ -144,6 +146,16 @@ const styles = StyleSheet.create({
   skeletonGroupText: {
     flex: 1,
   },
+  refreshButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  refreshIcon: {
+    fontSize: 24,
+    color: '#1F2937',
+  },
 });
 
 const SkeletonCard = () => (
@@ -166,7 +178,16 @@ const SkeletonGroupItem = () => (
 const ProfesorHome = () => {
   const user = useSelector((state) => state.auth.user);
   const loading = useSelector((state) => state.auth.loading);
+  const dispatch = useDispatch();
   const router = useRouter();
+
+  const handleRefresh = () => {
+    if (user && user.id) {
+      dispatch(fetchAdditionalUserData(user.id));
+    } else {
+      console.error('User ID not found');
+    }
+  };
 
   const handleGroupPress = (group) => {
     router.push({
@@ -177,7 +198,7 @@ const ProfesorHome = () => {
 
   const renderGroupItem = ({ item }) => {
     const scaleValue = new Animated.Value(1);
-  
+
     const handlePressIn = () => {
       Animated.spring(scaleValue, {
         toValue: 0.95,
@@ -185,7 +206,7 @@ const ProfesorHome = () => {
         speed: 20,
       }).start();
     };
-  
+
     const handlePressOut = () => {
       Animated.spring(scaleValue, {
         toValue: 1,
@@ -193,7 +214,7 @@ const ProfesorHome = () => {
         speed: 20,
       }).start();
     };
-  
+
     const countMembers = (encargados) => {
       let count = 0;
       encargados.forEach((encargado) => {
@@ -205,9 +226,9 @@ const ProfesorHome = () => {
       });
       return count;
     };
-  
+
     const totalIntegrantes = countMembers(item.encargados);
-  
+
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -233,10 +254,12 @@ const ProfesorHome = () => {
     );
   };
 
-
   if (loading) {
     return (
       <View style={styles.container}>
+        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+          <Ionicons name="refresh" style={styles.refreshIcon} />
+        </TouchableOpacity>
         <View style={styles.header}>
           <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
           <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
@@ -272,6 +295,9 @@ const ProfesorHome = () => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+        <Ionicons name="refresh" style={styles.refreshIcon} />
+      </TouchableOpacity>
       <View style={styles.header}>
         <Text style={styles.title}>Bienvenido, {user?.nombre}</Text>
         <Text style={styles.subtitle}>Aquí tienes una vista general de tus grupos:</Text>
@@ -279,10 +305,12 @@ const ProfesorHome = () => {
 
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
+          <Ionicons name="people" size={28} color="#4F46E5" />
           <Text style={styles.summaryText}>Total Grupos</Text>
           <Text style={styles.summaryValue}>{user?.groups?.length || 0}</Text>
         </View>
         <View style={styles.summaryCard}>
+          <Ionicons name="person" size={28} color="#4F46E5" />
           <Text style={styles.summaryText}>Total Integrantes</Text>
           <Text style={styles.summaryValue}>{totalIntegrantes}</Text>
         </View>

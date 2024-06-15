@@ -56,6 +56,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#9CA3AF',
   },
+  integrantesTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
 });
 
 const GroupInfoScreen = () => {
@@ -96,6 +102,7 @@ const GroupInfoScreen = () => {
           <Ionicons name="close" style={styles.closeIcon} />
         </TouchableOpacity>
       </View>
+      <Text style={styles.integrantesTitle}>Integrantes:</Text>
       <ScrollView style={styles.memberList}>
         {memberList.length > 0 ? (
           memberList.map((member, index) => {
