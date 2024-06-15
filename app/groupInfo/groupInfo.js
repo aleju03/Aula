@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -14,6 +14,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    marginTop: 20,
   },
   title: {
     fontSize: 24,
@@ -45,6 +46,15 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     color: '#1F2937',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 18,
+    color: '#9CA3AF',
   },
 });
 
@@ -86,12 +96,18 @@ const GroupInfoScreen = () => {
           <Ionicons name="close" style={styles.closeIcon} />
         </TouchableOpacity>
       </View>
-      <View style={styles.memberList}>
-        {memberList.map((member, index) => {
-          const role = member.estudiantes ? 'estudiante' : 'encargado';
-          return renderMemberItem(member, `${role}_${index}`);
-        })}
-      </View>
+      <ScrollView style={styles.memberList}>
+        {memberList.length > 0 ? (
+          memberList.map((member, index) => {
+            const role = member.estudiantes ? 'estudiante' : 'encargado';
+            return renderMemberItem(member, `${role}_${index}`);
+          })
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No members found</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
