@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { Text, View, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
-import RBSheet from 'react-native-raw-bottom-sheet';
+import { useRouter } from 'expo-router';
 
 const styles = StyleSheet.create({
   container: {
@@ -111,59 +111,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#6B7280',
   },
-  bottomSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 40,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  bottomSheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  bottomSheetTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  bottomSheetCloseButton: {
-    padding: 5,
-  },
-  bottomSheetCloseIcon: {
-    fontSize: 28,
-    color: '#6B7280',
-  },
-  memberList: {
-    marginBottom: 20,
-  },
-  memberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  memberIcon: {
-    fontSize: 24,
-    color: '#6B7280',
-    marginRight: 10,
-  },
-  memberName: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
   skeletonCard: {
     flex: 1,
     marginHorizontal: 5,
@@ -219,43 +166,46 @@ const SkeletonGroupItem = () => (
 const ProfesorHome = () => {
   const user = useSelector((state) => state.auth.user);
   const loading = useSelector((state) => state.auth.loading);
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const bottomSheetRef = useRef(null);
-  const scaleValue = new Animated.Value(1);
-
-  const handlePressIn = () => {
-    Animated.spring(scaleValue, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
+  const router = useRouter();
 
   const handleGroupPress = (group) => {
-    setSelectedGroup(group);
-    bottomSheetRef.current.open();
-  };
-
-  const closeBottomSheet = () => {
-    bottomSheetRef.current.close();
-    setSelectedGroup(null);
+    router.push({
+      pathname: '/groupInfo/groupInfo',
+      params: { group: JSON.stringify(group) },
+    });
   };
 
   const renderGroupItem = ({ item }) => {
-    const encargadosCount = item.encargados.reduce((sum, encargado) => {
-      const hasStudents = encargado.estudiantes && encargado.estudiantes.length > 0;
-      return sum + (hasStudents ? 0 : 1);
-    }, 0);
-    const estudiantesCount = item.encargados.reduce((sum, encargado) => {
-      return sum + (encargado.estudiantes && encargado.estudiantes.length > 0 ? encargado.estudiantes.length : 0);
-    }, 0);
-    const totalIntegrantes = encargadosCount + estudiantesCount;
+    const scaleValue = new Animated.Value(1);
+
+    const handlePressIn = () => {
+      Animated.spring(scaleValue, {
+        toValue: 0.95,
+        useNativeDriver: true,
+        speed: 20,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleValue, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+      }).start();
+    };
+
+    const uniqueMembers = new Set();
+
+    item.encargados.forEach((encargado) => {
+      uniqueMembers.add(encargado.id);
+      if (encargado.estudiantes) {
+        encargado.estudiantes.forEach((estudiante) => {
+          uniqueMembers.add(estudiante.id);
+        });
+      }
+    });
+
+    const totalIntegrantes = uniqueMembers.size;
 
     return (
       <TouchableOpacity
@@ -282,12 +232,6 @@ const ProfesorHome = () => {
     );
   };
 
-  const renderMemberItem = (member, index) => (
-    <View key={index} style={styles.memberItem}>
-      <Ionicons name="person" style={styles.memberIcon} />
-      <Text style={styles.memberName}>{member.nombre}</Text>
-    </View>
-  );
 
   if (loading) {
     return (
@@ -314,14 +258,18 @@ const ProfesorHome = () => {
   }
 
   const totalIntegrantes = user?.groups?.reduce((acc, group) => {
-    const encargadosCount = group.encargados.reduce((sum, encargado) => {
-      const hasStudents = encargado.estudiantes && encargado.estudiantes.length > 0;
-      return sum + (hasStudents ? 0 : 1);
-    }, 0);
-    const estudiantesCount = group.encargados.reduce((sum, encargado) => {
-      return sum + (encargado.estudiantes && encargado.estudiantes.length > 0 ? encargado.estudiantes.length : 0);
-    }, 0);
-    return acc + encargadosCount + estudiantesCount;
+    const uniqueMembers = new Set();
+
+    group.encargados.forEach((encargado) => {
+      uniqueMembers.add(encargado.id);
+      if (encargado.estudiantes) {
+        encargado.estudiantes.forEach((estudiante) => {
+          uniqueMembers.add(estudiante.id);
+        });
+      }
+    });
+
+    return acc + uniqueMembers.size;
   }, 0) || 0;
 
   return (
@@ -352,33 +300,6 @@ const ProfesorHome = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
       />
-
-      <RBSheet
-        ref={bottomSheetRef}
-        height={500}
-        openDuration={250}
-        closeOnDragDown={true}
-        closeOnPressMask={true}
-        customStyles={{
-          container: styles.bottomSheet,
-        }}
-      >
-        <View style={styles.bottomSheetHeader}>
-          <Text style={styles.bottomSheetTitle}>{selectedGroup?.nombre}</Text>
-          <TouchableOpacity style={styles.bottomSheetCloseButton} onPress={closeBottomSheet}>
-            <Ionicons name="close" style={styles.bottomSheetCloseIcon} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.memberList}>
-          {selectedGroup?.encargados.flatMap((encargado) => {
-            if (encargado.estudiantes && encargado.estudiantes.length > 0) {
-              return encargado.estudiantes.map(renderMemberItem);
-            } else {
-              return renderMemberItem(encargado, encargado.id);
-            }
-          })}
-        </View>
-      </RBSheet>
     </View>
   );
 };
