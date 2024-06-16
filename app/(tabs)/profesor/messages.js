@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, FlatList, TextInput, TouchableOpacity, Modal, RefreshControl, ActivityIndicator } from 'react-native';
+import { Text, View, StyleSheet, FlatList, TextInput, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
 import { db } from '../../../utils/firebase';
 import { collection, query, where, getDocs, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -27,6 +27,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedSelectorButton: {
+    backgroundColor: '#AEC6CF',
   },
   messageContainer: {
     flexDirection: 'row',
@@ -41,6 +51,11 @@ const styles = StyleSheet.create({
   messageRemitente: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  messageDetailsDate: {
+    fontSize: 16,
+    color: '#888',
+    marginBottom: 20,
   },
   messageTitulo: {
     fontSize: 14,
@@ -82,6 +97,14 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 20,
   },
+  messageInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+    maxHeight: 150,
+  },
   selectorButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
@@ -92,6 +115,7 @@ const styles = StyleSheet.create({
   },
   selectorButtonText: {
     fontSize: 16,
+    fontWeight: 'bold',
   },
   sendButton: {
     backgroundColor: '#075eec',
@@ -106,7 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#075eec',
     borderRadius: 5,
     padding: 10,
     alignItems: 'center',
@@ -151,14 +175,15 @@ const styles = StyleSheet.create({
   selectedDestinatarioText: {
     fontSize: 14,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  messageTime: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 5,
   },
   loadingText: {
     fontSize: 16,
     marginTop: 10,
+    textAlign: 'center',
   },
   tipoComunicacionContainer: {
     flexDirection: 'row',
@@ -180,33 +205,72 @@ const styles = StyleSheet.create({
   selectedTipoComunicacionButtonText: {
     color: '#fff',
   },
+  messageTituloEnviados: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
   messageDetailsContainer: {
-    padding: 15,
+    flexGrow: 1,
+    padding: 20,
     backgroundColor: '#fff',
   },
   messageDetailsTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 20,
+    color: '#1F2937',
+  },
+  messageDetailsContentContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
   },
   messageDetailsContent: {
     fontSize: 16,
-    marginBottom: 10,
+    color: '#4B5563',
   },
-  messageDetailsGroup: {
-    fontSize: 14,
-    color: '#888',
+  messageDetailsInfoContainer: {
+    marginBottom: 20,
   },
-  emptyContainer: {
-    flex: 1,
+  messageDetailsInfoText: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: '#1F2937',
+  },
+  messageDetailsInfoLabel: {
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    backgroundColor: '#075eec',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 30,
   },
-  selectedDestinatarioRemoveButton: {
-    marginLeft: 5,
+  paginationButton: {
+    backgroundColor: '#075eec',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginHorizontal: 5,
   },
-  selectedSelectorButton: {
-    backgroundColor: '#ADD8E6',
+  paginationButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 
@@ -232,6 +296,11 @@ const ProfesorMessages = () => {
   const user = useSelector((state) => state.auth.user);
   const [searchDestinatarioText, setSearchDestinatarioText] = useState('');
   const [searchGroupText, setSearchGroupText] = useState('');
+  const [currentGroupPage, setCurrentGroupPage] = useState(1);
+  const [currentDestinatarioPage, setCurrentDestinatarioPage] = useState(1);
+  const itemsPerPage = 6;
+  const [isLoading, setIsLoading] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     fetchMessages();
@@ -258,10 +327,40 @@ const ProfesorMessages = () => {
     setLoadingDestinatarios(false);
   };
 
+  const formatDate = (timestamp) => {
+    const date = timestamp.toDate();
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const timeOptions = { hour: 'numeric', minute: 'numeric' };
+    const formattedDate = date.toLocaleDateString(undefined, dateOptions);
+    const formattedTime = date.toLocaleTimeString(undefined, timeOptions);
+    return `${formattedDate} a las ${formattedTime}`;
+  };
+
+  const getTimeDifference = (timestamp) => {
+    const currentTime = new Date();
+    const messageTime = timestamp.toDate();
+    const timeDiff = currentTime - messageTime;
+  
+    const seconds = Math.floor(timeDiff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+  
+    if (days > 0) {
+      return `${days}d`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else if (minutes > 0) {
+      return `${minutes}m`;
+    } else {
+      return 'Ahora';
+    }
+  };
+
   const fetchMessages = async () => {
     setRefreshing(true);
     setLoading(true);
-    console.log('Fetching messages...');
+    setIsLoading(true);
     const messagesRef = collection(db, 'Comunicaciones');
     const q = query(
       messagesRef,
@@ -289,12 +388,12 @@ const ProfesorMessages = () => {
         };
       }));
       setMessages(fetchedMessages);
-      console.log('Messages fetched successfully:', fetchedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
     setRefreshing(false);
     setLoading(false);
+    setIsLoading(false);
   };
 
   const onRefresh = async () => {
@@ -307,8 +406,18 @@ const ProfesorMessages = () => {
 
   const renderMessageItem = ({ item }) => (
     <TouchableOpacity style={styles.messageContainer} onPress={() => setSelectedMessage(item)}>
-      <Text style={styles.messageRemitente}>{item.remitente.nombre}</Text>
-      <Text style={styles.messageTitulo}>{item.titulo}</Text>
+      {selectedSection === 'recibidos' ? (
+        <>
+          <Text style={styles.messageRemitente}>{item.remitente.nombre}</Text>
+          <Text style={styles.messageTitulo}>{item.titulo}</Text>
+          <Text style={styles.messageTime}>{getTimeDifference(item.fecha_envio)}</Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.messageTituloEnviados}>{item.titulo}</Text>
+          <Text style={styles.messageTime}>{getTimeDifference(item.fecha_envio)}</Text>
+        </>
+      )}
     </TouchableOpacity>
   );
 
@@ -334,8 +443,14 @@ const ProfesorMessages = () => {
   };
 
   const handleSendMessage = async () => {
+    if (!newMessage.titulo || !newMessage.mensaje || (tipoComunicacion === 'general' && !selectedGroup) || (tipoComunicacion === 'especifica' && selectedDestinatarios.length === 0)) {
+      alert('Por favor complete todos los campos y seleccione al menos un destinatario.');
+      return;
+    }
+
+    setSendingMessage(true); // Establecer sendingMessage en true antes de enviar el mensaje
+
     try {
-      console.log('Sending message...');
       const destinatarios = tipoComunicacion === 'general'
         ? selectedGroup.encargados.map((encargado) => doc(db, 'Usuarios', encargado.id))
         : selectedDestinatarios.map((destinatario) => doc(db, 'Usuarios', destinatario.id));
@@ -346,7 +461,6 @@ const ProfesorMessages = () => {
         destinatarios,
         tipo_comunicacion: tipoComunicacion,
       });
-      console.log('Message sent successfully');
       setModalVisible(false);
       setNewMessage({
         titulo: '',
@@ -359,6 +473,24 @@ const ProfesorMessages = () => {
     } catch (error) {
       console.error('Error sending message:', error);
     }
+
+    setSendingMessage(false); // Establecer sendingMessage en false después de enviar el mensaje
+  };
+
+  const handleNextGroupPage = () => {
+    setCurrentGroupPage((prevPage) => prevPage + 1);
+  };
+
+  const handlePrevGroupPage = () => {
+    setCurrentGroupPage((prevPage) => Math.max(prevPage - 1, 1));
+  };
+
+  const handleNextDestinatarioPage = () => {
+    setCurrentDestinatarioPage((prevPage) => prevPage + 1);
+  };
+
+  const handlePrevDestinatarioPage = () => {
+    setCurrentDestinatarioPage((prevPage) => Math.max(prevPage - 1, 1));
   };
 
   const filteredGroups = user.groups.filter((group) =>
@@ -369,6 +501,14 @@ const ProfesorMessages = () => {
     destinatario.nombre.toLowerCase().includes(searchDestinatarioText.toLowerCase())
   );
 
+  const indexOfLastGroup = currentGroupPage * itemsPerPage;
+  const indexOfFirstGroup = indexOfLastGroup - itemsPerPage;
+  const currentGroups = filteredGroups.slice(indexOfFirstGroup, indexOfLastGroup);
+
+  const indexOfLastDestinatario = currentDestinatarioPage * itemsPerPage;
+  const indexOfFirstDestinatario = indexOfLastDestinatario - itemsPerPage;
+  const currentDestinatarios = filteredDestinatarios.slice(indexOfFirstDestinatario, indexOfLastDestinatario);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -377,7 +517,10 @@ const ProfesorMessages = () => {
       <View style={{ flexDirection: 'row', marginBottom: 10 }}>
         <TouchableOpacity
           style={[styles.sectionButton, selectedSection === 'recibidos' && styles.selectedSectionButton]}
-          onPress={() => setSelectedSection('recibidos')}
+          onPress={() => {
+            setSelectedSection('recibidos');
+            setIsLoading(true);
+          }}
         >
           <Text style={[styles.sectionButtonText, selectedSection === 'recibidos' && styles.selectedSectionButtonText]}>
             Recibidos
@@ -385,7 +528,10 @@ const ProfesorMessages = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.sectionButton, selectedSection === 'enviados' && styles.selectedSectionButton]}
-          onPress={() => setSelectedSection('enviados')}
+          onPress={() => {
+            setSelectedSection('enviados');
+            setIsLoading(true);
+          }}
         >
           <Text style={[styles.sectionButtonText, selectedSection === 'enviados' && styles.selectedSectionButtonText]}>
             Enviados
@@ -398,32 +544,30 @@ const ProfesorMessages = () => {
         value={searchText}
         onChangeText={setSearchText}
       />
-      {loading ? (
+      {isLoading ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color="#075eec" />
           <Text style={styles.loadingText}>Cargando mensajes...</Text>
         </View>
+      ) : filteredMessages.length > 0 ? (
+        <FlatList
+          data={filteredMessages}
+          renderItem={renderMessageItem}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
       ) : (
-        filteredMessages.length > 0 ? (
-          <FlatList
-            data={filteredMessages}
-            renderItem={renderMessageItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          />
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No hay mensajes</Text>
-          </View>
-        )
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No hay mensajes</Text>
+        </View>
       )}
       <TouchableOpacity style={styles.newMessageButton} onPress={handleNewMessage}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
       <Modal visible={modalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
+        <ScrollView contentContainerStyle={styles.modalContainer}>
           <Text style={styles.modalTitle}>Nuevo Mensaje</Text>
           <TextInput
             style={styles.input}
@@ -432,7 +576,7 @@ const ProfesorMessages = () => {
             onChangeText={(text) => setNewMessage({ ...newMessage, titulo: text })}
           />
           <TextInput
-            style={styles.input}
+            style={styles.messageInput}
             placeholder="Mensaje"
             multiline
             value={newMessage.mensaje}
@@ -508,13 +652,21 @@ const ProfesorMessages = () => {
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-            <Text style={styles.sendButtonText}>Enviar</Text>
+          <TouchableOpacity
+            style={styles.sendButton}
+            onPress={handleSendMessage}
+            disabled={sendingMessage} // Deshabilitar el botón mientras se envía el mensaje
+          >
+            {sendingMessage ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.sendButtonText}>Enviar</Text>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </Modal>
       <Modal visible={groupSelectorVisible} animationType="slide">
         <View style={styles.modalContainer}>
@@ -525,21 +677,41 @@ const ProfesorMessages = () => {
             value={searchGroupText}
             onChangeText={setSearchGroupText}
           />
-          {filteredGroups.map((group) => (
-            <TouchableOpacity
-              key={group.id}
-              style={[
-                styles.selectorButton,
-                selectedGroup && selectedGroup.id === group.id && styles.selectedSelectorButton,
-              ]}
-              onPress={() => {
-                handleGroupSelect(group);
-                setGroupSelectorVisible(false);
-              }}
-            >
-              <Text style={styles.selectorButtonText}>{group.nombre}</Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView>
+            {currentGroups.map((group) => (
+              <TouchableOpacity
+                key={group.id}
+                style={[
+                  styles.selectorButton,
+                  selectedGroup && selectedGroup.id === group.id && styles.selectedSelectorButton,
+                ]}
+                onPress={() => {
+                  handleGroupSelect(group);
+                  setGroupSelectorVisible(false);
+                }}
+              >
+                <Text style={styles.selectorButtonText}>{group.nombre}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          {filteredGroups.length > itemsPerPage && (
+            <View style={styles.paginationContainer}>
+              <TouchableOpacity
+                style={styles.paginationButton}
+                onPress={handlePrevGroupPage}
+                disabled={currentGroupPage === 1}
+              >
+                <Ionicons name="arrow-back" size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.paginationButton}
+                onPress={handleNextGroupPage}
+                disabled={indexOfLastGroup >= filteredGroups.length}
+              >
+                <Ionicons name="arrow-forward" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => setGroupSelectorVisible(false)}
@@ -560,18 +732,38 @@ const ProfesorMessages = () => {
           {loadingDestinatarios ? (
             <ActivityIndicator size="small" color="#075eec" />
           ) : (
-            filteredDestinatarios.map((destinatario) => (
+            <ScrollView>
+              {currentDestinatarios.map((destinatario) => (
+                <TouchableOpacity
+                  key={destinatario.id}
+                  style={[
+                    styles.selectorButton,
+                    selectedDestinatarios.some((d) => d.id === destinatario.id) && styles.selectedSelectorButton,
+                  ]}
+                  onPress={() => handleDestinatarioSelect(destinatario)}
+                >
+                  <Text style={styles.selectorButtonText}>{destinatario.nombre}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+          {filteredDestinatarios.length > itemsPerPage && (
+            <View style={styles.paginationContainer}>
               <TouchableOpacity
-                key={destinatario.id}
-                style={[
-                  styles.selectorButton,
-                  selectedDestinatarios.some((d) => d.id === destinatario.id) && styles.selectedSelectorButton,
-                ]}
-                onPress={() => handleDestinatarioSelect(destinatario)}
+                style={styles.paginationButton}
+                onPress={handlePrevDestinatarioPage}
+                disabled={currentDestinatarioPage === 1}
               >
-                <Text style={styles.selectorButtonText}>{destinatario.nombre}</Text>
+                <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-            ))
+              <TouchableOpacity
+                style={styles.paginationButton}
+                onPress={handleNextDestinatarioPage}
+                disabled={indexOfLastDestinatario >= filteredDestinatarios.length}
+              >
+                <Ionicons name="arrow-forward" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
           )}
           <TouchableOpacity
             style={styles.sendButton}
@@ -588,22 +780,30 @@ const ProfesorMessages = () => {
         </View>
       </Modal>
       <Modal visible={selectedMessage !== null} animationType="slide">
-        <View style={styles.messageDetailsContainer}>
+        <ScrollView contentContainerStyle={styles.messageDetailsContainer}>
           <Text style={styles.messageDetailsTitle}>{selectedMessage?.titulo}</Text>
-          <Text style={styles.messageDetailsContent}>{selectedMessage?.mensaje}</Text>
-          <Text style={styles.messageDetailsGroup}>
-            Remitente: {selectedMessage?.remitente?.nombre}
-          </Text>
-          <Text style={styles.messageDetailsGroup}>
-            Destinatarios: {selectedMessage?.destinatarios.map(d => d.nombre).join(', ')}
-          </Text>
+          <Text style={styles.messageDetailsDate}>{selectedMessage ? formatDate(selectedMessage.fecha_envio) : ''}</Text>
+          <View style={styles.messageDetailsInfoContainer}>
+            <Text style={styles.messageDetailsInfoText}>
+              <Text style={styles.messageDetailsInfoLabel}>Remitente:</Text> {selectedMessage?.remitente?.nombre}
+            </Text>
+            <Text style={styles.messageDetailsInfoText}>
+              <Text style={styles.messageDetailsInfoLabel}>Destinatarios:</Text>{' '}
+              {selectedMessage?.destinatarios.map((d, index, array) => 
+                index === array.length - 1 ? `${d.nombre}.` : `${d.nombre}, `
+              )}
+            </Text>
+          </View>
+          <View style={styles.messageDetailsContentContainer}>
+            <Text style={styles.messageDetailsContent}>{selectedMessage?.mensaje}</Text>
+          </View>
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={styles.closeButton}
             onPress={() => setSelectedMessage(null)}
           >
-            <Text style={styles.cancelButtonText}>Cerrar</Text>
+            <Text style={styles.closeButtonText}>Cerrar</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </Modal>
     </View>
   );
