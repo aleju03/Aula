@@ -183,7 +183,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    height: 150,
+    overflow: 'hidden',
   },
+  
   assignmentTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -285,6 +288,11 @@ const styles = StyleSheet.create({
   modalFileName: {
     fontSize: 16,
     color: '#4B5563',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 10,
   },
 });
 
@@ -668,7 +676,8 @@ const ProfesorAssignments = () => {
               data={assignments}
               renderItem={renderAssignmentItem}
               keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingTop: 20 }}
+              contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }}
+              showsVerticalScrollIndicator={false}
             />
           ) : (
             <Text style={styles.emptyText}>No hay asignaciones</Text>
@@ -718,6 +727,7 @@ const ProfesorAssignments = () => {
                         ))}
                       </View>
                     )}
+                    {index < selectedAssignment.etapas.length - 1 && <View style={styles.separator} />}
                   </View>
                 ))}
               </ScrollView>

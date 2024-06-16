@@ -41,6 +41,7 @@ export default function ProfesorTabLayout() {
         options={{
           title: 'Mensajes',
           tabBarIcon: ({ color }) => <Ionicons name="chatbubble-ellipses" size={28} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen

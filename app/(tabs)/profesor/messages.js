@@ -1,219 +1,327 @@
-// app/(tabs)/profesor/messages.js
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Button, Alert, FlatList, TouchableOpacity, Modal } from 'react-native';
+import {
+  Text,
+  View,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  RefreshControl,
+} from 'react-native';
+import { useSelector } from 'react-redux';
 import { db } from '../../../utils/firebase';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+  doc,
+} from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  searchInput: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 20,
+  },
+  messageItem: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+  },
+  messageTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  messagePreview: {
+    fontSize: 14,
+    color: '#777',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#777',
+    textAlign: 'center',
+    marginTop: 50,
+  },
+  newMessageButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#075eec',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+  },
+  groupSelector: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+  },
+  groupSelectorText: {
+    fontSize: 16,
+  },
+  destinatarioSelector: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+  },
+  destinatarioSelectorText: {
+    fontSize: 16,
+  },
+  sendButton: {
+    backgroundColor: '#075eec',
+    borderRadius: 5,
+    padding: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
 
 const ProfesorMessages = () => {
-  const [grupos, setGrupos] = useState([]);
-  const [encargados, setEncargados] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newMessage, setNewMessage] = useState({
+    titulo: '',
+    mensaje: '',
+  });
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [selectedEncargados, setSelectedEncargados] = useState([]);
-  const [titulo, setTitulo] = useState('');
-  const [mensaje, setMensaje] = useState('');
-  const [tipoComunicacion, setTipoComunicacion] = useState('general');
-  const [docenteId, setDocenteId] = useState(null);
-  const [groupModalVisible, setGroupModalVisible] = useState(false);
-  const [typeModalVisible, setTypeModalVisible] = useState(false);
+  const [selectedDestinatarios, setSelectedDestinatarios] = useState([]);
+  const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
-    const fetchDocenteId = async () => {
-      const userId = await AsyncStorage.getItem('userId');
-      const profesorQuery = query(collection(db, 'Usuarios'), where('carne', '==', userId));
-      const profesorSnapshot = await getDocs(profesorQuery);
-      if (!profesorSnapshot.empty) {
-        const profesorDocId = profesorSnapshot.docs[0].id;
-        setDocenteId(profesorDocId);
-        fetchGrupos(profesorDocId);
-      }
-    };
+    fetchMessages();
+  }, [user.id]);
 
-    fetchDocenteId();
-  }, []);
+  const fetchMessages = async () => {
+    setRefreshing(true);
+    const messagesRef = collection(db, 'Comunicaciones');
+    const q = query(
+      messagesRef,
+      where('destinatarios', 'array-contains', `Usuarios/${user.id}`),
+      orderBy('fecha_envio', 'desc')
+    );
 
-  const fetchGrupos = async (profesorDocId) => {
-    try {
-      const profesorRef = collection(db, 'Usuarios').doc(profesorDocId);
-      const gruposQuery = query(collection(db, 'Grupos'), where('docente', '==', profesorRef));
-      const gruposSnapshot = await getDocs(gruposQuery);
-      const gruposData = gruposSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setGrupos(gruposData);
-    } catch (error) {
-      console.error('Error al obtener los grupos:', error);
-    }
+    const snapshot = await getDocs(q);
+    const fetchedMessages = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setMessages(fetchedMessages);
+    setRefreshing(false);
   };
 
-  const fetchEncargados = async (groupId) => {
-    try {
-      const grupo = grupos.find(g => g.id === groupId);
-      const encargadosPromises = grupo.encargados.map(encargadoRef => getDocs(query(collection(db, 'Usuarios'), where('__name__', '==', encargadoRef.id))));
-      const encargadosSnapshots = await Promise.all(encargadosPromises);
-      const encargadosData = encargadosSnapshots.map(snapshot => ({
-        id: snapshot.docs[0].id,
-        ...snapshot.docs[0].data()
-      }));
-      setEncargados(encargadosData);
-    } catch (error) {
-      console.error('Error al obtener los encargados:', error);
-    }
+  const onRefresh = async () => {
+    await fetchMessages();
   };
 
-  const handleGroupPress = (group) => {
+  const filteredMessages = messages.filter((message) =>
+    message.titulo.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  const renderMessageItem = ({ item }) => (
+    <TouchableOpacity style={styles.messageItem}>
+      <Text style={styles.messageTitle}>{item.titulo}</Text>
+      <Text style={styles.messagePreview}>{item.mensaje}</Text>
+    </TouchableOpacity>
+  );
+
+  const handleNewMessage = () => {
+    setModalVisible(true);
+  };
+
+  const handleGroupSelect = (group) => {
     setSelectedGroup(group);
-    setGroupModalVisible(false);
-    fetchEncargados(group.id);
+    setSelectedDestinatarios([]);
   };
 
-  const handleSendCommunication = async () => {
-    if (!titulo || !mensaje || !selectedGroup) {
-      Alert.alert('Error', 'Por favor complete todos los campos');
-      return;
+  const handleDestinatarioSelect = (destinatario) => {
+    if (selectedDestinatarios.includes(destinatario)) {
+      setSelectedDestinatarios(
+        selectedDestinatarios.filter((d) => d !== destinatario)
+      );
+    } else {
+      setSelectedDestinatarios([...selectedDestinatarios, destinatario]);
     }
+  };
 
-    if (tipoComunicacion === 'especifica' && selectedEncargados.length === 0) {
-      Alert.alert('Error', 'Debe seleccionar al menos un encargado para una comunicación específica');
-      return;
-    }
-
-    const destinatarios = tipoComunicacion === 'general' 
-      ? encargados.map(enc => enc.id)
-      : selectedEncargados.map(encargadoId => encargados.find(enc => enc.id === encargadoId).id);
-
+  const handleSendMessage = async () => {
     try {
       await addDoc(collection(db, 'Comunicaciones'), {
-        titulo,
-        mensaje,
-        fecha_envío: new Date(),
-        remitente: docenteId, // Enviar el ID del documento del profesor
-        destinatarios,
-        tipo_comunicación: tipoComunicacion,
+        ...newMessage,
+        fecha_envio: serverTimestamp(),
+        remitente: doc(db, 'Usuarios', user.id),
+        destinatarios: selectedDestinatarios.map((d) => doc(db, 'Usuarios', d)),
       });
-      Alert.alert('Éxito', 'Comunicación enviada');
+      setModalVisible(false);
+      setNewMessage({
+        titulo: '',
+        mensaje: '',
+      });
+      setSelectedGroup(null);
+      setSelectedDestinatarios([]);
+      await fetchMessages();
     } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error al enviar la comunicación');
+      console.error('Error al enviar el mensaje:', error);
     }
-  };
-
-  const toggleEncargadoSelection = (encargadoId) => {
-    setSelectedEncargados(prev => {
-      if (prev.includes(encargadoId)) {
-        return prev.filter(id => id !== encargadoId);
-      }
-      return [...prev, encargadoId];
-    });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Enviar Comunicación</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Mensajes</Text>
+      </View>
       <TextInput
-        style={styles.input}
-        placeholder="Título"
-        value={titulo}
-        onChangeText={setTitulo}
+        style={styles.searchInput}
+        placeholder="Buscar mensajes"
+        value={searchText}
+        onChangeText={setSearchText}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Mensaje"
-        value={mensaje}
-        onChangeText={setMensaje}
-      />
-      <TouchableOpacity
-        style={styles.selector}
-        onPress={() => setGroupModalVisible(true)}
-      >
-        <Text>{selectedGroup ? selectedGroup.nombre : 'Seleccionar Grupo'}</Text>
-      </TouchableOpacity>
-      <Modal
-        transparent={true}
-        visible={groupModalVisible}
-        onRequestClose={() => setGroupModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <FlatList
-              data={grupos}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => handleGroupPress(item)}
-                >
-                  <Text>{item.nombre}</Text>
-                </TouchableOpacity>
-              )}
-            />
-            <Button title="Cerrar" onPress={() => setGroupModalVisible(false)} />
-          </View>
-        </View>
-      </Modal>
-      <TouchableOpacity
-        style={styles.selector}
-        onPress={() => setTypeModalVisible(true)}
-      >
-        <Text>{tipoComunicacion === 'general' ? 'Comunicación General' : 'Comunicación Específica'}</Text>
-      </TouchableOpacity>
-      <Modal
-        transparent={true}
-        visible={typeModalVisible}
-        onRequestClose={() => setTypeModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalItem}
-              onPress={() => {
-                setTipoComunicacion('general');
-                setTypeModalVisible(false);
-              }}
-            >
-              <Text>Comunicación General</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalItem}
-              onPress={() => {
-                setTipoComunicacion('especifica');
-                setTypeModalVisible(false);
-              }}
-            >
-              <Text>Comunicación Específica</Text>
-            </TouchableOpacity>
-            <Button title="Cerrar" onPress={() => setTypeModalVisible(false)} />
-          </View>
-        </View>
-      </Modal>
-      {tipoComunicacion === 'especifica' && (
+      {filteredMessages.length > 0 ? (
         <FlatList
-          data={encargados}
+          data={filteredMessages}
+          renderItem={renderMessageItem}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.encargadoItem}
-              onPress={() => toggleEncargadoSelection(item.id)}
-            >
-              <Text style={styles.encargadoText}>{item.nombre}</Text>
-              <Text style={styles.encargadoText}>{selectedEncargados.includes(item.id) ? 'Seleccionado' : ''}</Text>
-            </TouchableOpacity>
-          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
+      ) : (
+        <Text style={styles.emptyText}>No hay mensajes</Text>
       )}
-      <Button title="Enviar Comunicación" onPress={handleSendCommunication} />
+      <TouchableOpacity style={styles.newMessageButton} onPress={handleNewMessage}>
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
+      <Modal visible={modalVisible} animationType="slide">
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Nuevo Mensaje</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Título"
+            value={newMessage.titulo}
+            onChangeText={(text) =>
+              setNewMessage({ ...newMessage, titulo: text })
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Mensaje"
+            multiline
+            value={newMessage.mensaje}
+            onChangeText={(text) =>
+              setNewMessage({ ...newMessage, mensaje: text })
+            }
+          />
+          <TouchableOpacity
+            style={styles.groupSelector}
+            onPress={() => {
+              // Lógica para mostrar el selector de grupo
+            }}
+          >
+            <Text style={styles.groupSelectorText}>
+              {selectedGroup ? selectedGroup.nombre : 'Seleccionar grupo'}
+            </Text>
+          </TouchableOpacity>
+          {selectedGroup && (
+            <View style={styles.destinatarioSelector}>
+              {selectedGroup.encargados.map((encargado) => (
+                <TouchableOpacity
+                  key={encargado.id}
+                  onPress={() => handleDestinatarioSelect(encargado.id)}
+                >
+                  <Text style={styles.destinatarioSelectorText}>
+                    {encargado.nombre} (
+                    {selectedDestinatarios.includes(encargado.id)
+                      ? 'Seleccionado'
+                      : 'No seleccionado'}
+                    )
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.sendButton}
+            onPress={handleSendMessage}
+          >
+            <Text style={styles.sendButtonText}>Enviar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancelar</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 24, marginBottom: 16 },
-  input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 12, paddingHorizontal: 8 },
-  selector: { height: 40, borderColor: 'gray', borderWidth: 1, justifyContent: 'center', marginBottom: 12, paddingHorizontal: 8 },
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: 300, backgroundColor: 'white', borderRadius: 8, padding: 16, alignItems: 'center' },
-  modalItem: { padding: 16, borderBottomWidth: 1, borderBottomColor: 'gray', width: '100%', alignItems: 'center' },
-  encargadoItem: { padding: 8, borderBottomWidth: 1, borderBottomColor: 'gray' },
-  encargadoText: { fontSize: 16 },
-});
 
 export default ProfesorMessages;

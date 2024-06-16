@@ -324,6 +324,7 @@ const ProfesorHome = () => {
             </>
           )
         }
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
