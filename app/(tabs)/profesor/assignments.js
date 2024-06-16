@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
   },
   closeButtonContainer: {
     position: 'absolute',
-    top: 40,
-    right: 20,
+    top: 45,
+    right: 29,
     zIndex: 1,
   },
   modalContent: {
@@ -253,6 +253,10 @@ const styles = StyleSheet.create({
   modalEtapaDescription: {
     fontSize: 18,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
   },
   modalEtapaDateContainer: {
     marginBottom: 10,
@@ -289,6 +293,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4B5563',
   },
+  etapaButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'left',
+    marginBottom: 20,
+  },
+  etapaButton: {
+    marginHorizontal: 5,
+    padding: 10,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 8,
+  },
+  etapaButtonText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  etapaButtonSelected: {
+    backgroundColor: '#075eec',
+  },
+  etapaButtonSelectedText: {
+    color: '#fff',
+  },
   separator: {
     height: 1,
     backgroundColor: '#E5E7EB',
@@ -312,6 +337,7 @@ const ProfesorAssignments = () => {
   const [selectedAssignments, setSelectedAssignments] = useState([]);
   const [deleting, setDeleting] = useState(false);
   const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [currentEtapaIndex, setCurrentEtapaIndex] = useState(0);
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
@@ -702,24 +728,45 @@ const ProfesorAssignments = () => {
               <TouchableOpacity style={styles.closeButtonContainer} onPress={() => setSelectedAssignment(null)}>
                 <FontAwesome name="close" size={24} color="#000" />
               </TouchableOpacity>
-              <ScrollView contentContainerStyle={styles.modalScrollView}>
+              <ScrollView contentContainerStyle={styles.modalScrollView} showsVerticalScrollIndicator={false}>
                 <Text style={styles.modalTitle}>{selectedAssignment.titulo}</Text>
                 <Text style={styles.modalGroup}>{user.groups.find(group => group.id === selectedAssignment.grupo)?.nombre}</Text>
-                {selectedAssignment.etapas.map((etapa, index) => (
-                  <View key={index} style={styles.modalEtapaContainer}>
-                    {selectedAssignment.etapas.length > 1 && (
-                      <Text style={styles.modalEtapaTitle}>Etapa {index + 1}</Text>
-                    )}
-                    <Text style={styles.modalEtapaDescription}>{etapa.descripcion}</Text>
+                {selectedAssignment.etapas.length > 1 && (
+                  <View style={styles.etapaButtonContainer}>
+                    {selectedAssignment.etapas.map((etapa, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.etapaButton,
+                          currentEtapaIndex === index && styles.etapaButtonSelected,
+                        ]}
+                        onPress={() => setCurrentEtapaIndex(index)}
+                      >
+                        <Text
+                          style={[
+                            styles.etapaButtonText,
+                            currentEtapaIndex === index && styles.etapaButtonSelectedText,
+                          ]}
+                        >
+                          Etapa {index + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                {selectedAssignment.etapas.length === 1 ? (
+                  <View style={styles.modalEtapaContainer}>
+                    <Text style={styles.modalEtapaTitle}>Descripción:</Text>
+                    <Text style={styles.modalEtapaDescription}>{selectedAssignment.etapas[0].descripcion}</Text>
                     <View style={styles.modalEtapaDateContainer}>
                       <Text style={styles.modalEtapaDateLabel}>Fecha de entrega:</Text>
-                      <Text style={styles.modalEtapaDate}>{etapa.fecha_entrega.toDate().toLocaleDateString()}</Text>
-                      <Text style={styles.modalEtapaTime}>{etapa.fecha_entrega.toDate().toLocaleTimeString()}</Text>
+                      <Text style={styles.modalEtapaDate}>{selectedAssignment.etapas[0].fecha_entrega.toDate().toLocaleDateString()}</Text>
+                      <Text style={styles.modalEtapaTime}>{selectedAssignment.etapas[0].fecha_entrega.toDate().toLocaleTimeString()}</Text>
                     </View>
-                    {etapa.archivos_adjuntos && etapa.archivos_adjuntos.length > 0 && (
+                    {selectedAssignment.etapas[0].archivos_adjuntos && selectedAssignment.etapas[0].archivos_adjuntos.length > 0 && (
                       <View style={styles.modalFilesContainer}>
                         <Text style={styles.modalFilesTitle}>Archivos adjuntos:</Text>
-                        {etapa.archivos_adjuntos.map((archivo, fileIndex) => (
+                        {selectedAssignment.etapas[0].archivos_adjuntos.map((archivo, fileIndex) => (
                           <View key={fileIndex} style={styles.modalFileItem}>
                             <FontAwesome name="file" size={16} color="#4B5563" style={styles.modalFileIcon} />
                             <Text style={styles.modalFileName}>{archivo.nombre}</Text>
@@ -727,9 +774,29 @@ const ProfesorAssignments = () => {
                         ))}
                       </View>
                     )}
-                    {index < selectedAssignment.etapas.length - 1 && <View style={styles.separator} />}
                   </View>
-                ))}
+                ) : (
+                  <View style={styles.modalEtapaContainer}>
+                    <Text style={styles.modalEtapaTitle}>Etapa {currentEtapaIndex + 1}</Text>
+                    <Text style={styles.modalEtapaDescription}>{selectedAssignment.etapas[currentEtapaIndex].descripcion}</Text>
+                    <View style={styles.modalEtapaDateContainer}>
+                      <Text style={styles.modalEtapaDateLabel}>Fecha de entrega:</Text>
+                      <Text style={styles.modalEtapaDate}>{selectedAssignment.etapas[currentEtapaIndex].fecha_entrega.toDate().toLocaleDateString()}</Text>
+                      <Text style={styles.modalEtapaTime}>{selectedAssignment.etapas[currentEtapaIndex].fecha_entrega.toDate().toLocaleTimeString()}</Text>
+                    </View>
+                    {selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos && selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos.length > 0 && (
+                      <View style={styles.modalFilesContainer}>
+                        <Text style={styles.modalFilesTitle}>Archivos adjuntos:</Text>
+                        {selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos.map((archivo, fileIndex) => (
+                          <View key={fileIndex} style={styles.modalFileItem}>
+                            <FontAwesome name="file" size={16} color="#4B5563" style={styles.modalFileIcon} />
+                            <Text style={styles.modalFileName}>{archivo.nombre}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
               </ScrollView>
             </>
           )}
