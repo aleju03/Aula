@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { fetchEssentialUserData } from '../../utils/authSlice';
 import { db } from '../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import loginImage from '../../assets/login.png';
 
 const styles = StyleSheet.create({
   container: {
@@ -110,7 +111,7 @@ const LoginScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={{ uri: 'https://images.vexels.com/media/users/3/152825/isolated/preview/5b8297c29a8d4f5953c0ea5baa32d821-high-school-building-illustration-by-vexels.png' }}
+          source={loginImage}
           style={styles.headerImg}
           alt="Logo"
         />
