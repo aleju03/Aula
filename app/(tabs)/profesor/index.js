@@ -34,7 +34,8 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     marginHorizontal: 5,
-    padding: 15,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     shadowColor: '#000000',
@@ -46,16 +47,19 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryText: {
     fontSize: 16,
     color: '#1F2937',
     marginBottom: 5,
+    textAlign: 'center',
   },
   summaryValue: {
     fontSize: 24,
     fontWeight: '700',
     color: '#4F46E5',
+    textAlign: 'center',
   },
   groupListHeader: {
     marginBottom: 10,
