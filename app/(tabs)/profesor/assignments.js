@@ -186,7 +186,6 @@ const styles = StyleSheet.create({
     height: 150,
     overflow: 'hidden',
   },
-  
   assignmentTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -320,6 +319,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginVertical: 10,
   },
+  searchInput: {
+    backgroundColor: '#fff',
+    marginTop: 10,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
 });
 
 const ProfesorAssignments = () => {
@@ -339,6 +347,7 @@ const ProfesorAssignments = () => {
   const [deleting, setDeleting] = useState(false);
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [currentEtapaIndex, setCurrentEtapaIndex] = useState(0);
+  const [searchText, setSearchText] = useState('');
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
@@ -545,6 +554,10 @@ const ProfesorAssignments = () => {
     );
   };
 
+  const filteredAssignments = assignments.filter((assignment) =>
+    assignment.titulo.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
       {showCreateAssignment ? (
@@ -696,14 +709,20 @@ const ProfesorAssignments = () => {
           <TouchableOpacity style={styles.button} onPress={() => setShowCreateAssignment(true)}>
             <Text style={styles.buttonText}>Crear Asignación</Text>
           </TouchableOpacity>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar asignaciones"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
           {loading ? (
             <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
-          ) : assignments.length > 0 ? (
+          ) : filteredAssignments.length > 0 ? (
             <FlatList
-              data={assignments}
+              data={filteredAssignments}
               renderItem={renderAssignmentItem}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingTop: 20, paddingBottom: 195 }}
               showsVerticalScrollIndicator={false}
             />
           ) : (

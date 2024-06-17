@@ -90,14 +90,32 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     color: '#1F2937',
   },
-  assignmentEtapa: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 10,
-  },
   assignmentDate: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  paginationButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 5,
+    marginHorizontal: 5,
+  },
+  paginationButtonText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  paginationActiveButton: {
+    backgroundColor: '#1F2937',
+  },
+  paginationActiveButtonText: {
+    color: '#FFFFFF',
   },
 });
 
@@ -107,6 +125,8 @@ const GroupInfoScreen = () => {
   const parsedGroup = JSON.parse(group);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [membersPerPage] = useState(15);
 
   useEffect(() => {
     fetchAssignments();
@@ -151,6 +171,18 @@ const GroupInfoScreen = () => {
 
   const memberList = Array.from(uniqueMembers).map((memberString) => JSON.parse(memberString));
 
+  // Pagination logic
+  const indexOfLastMember = currentPage * membersPerPage;
+  const indexOfFirstMember = indexOfLastMember - membersPerPage;
+  const currentMembers = memberList.slice(indexOfFirstMember, indexOfLastMember);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const pageNumbers = [];
+  for (let i = 1; i <= Math.ceil(memberList.length / membersPerPage); i++) {
+    pageNumbers.push(i);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -162,8 +194,8 @@ const GroupInfoScreen = () => {
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <Text style={styles.integrantesTitle}>Integrantes:</Text>
         <View style={styles.memberList}>
-          {memberList.length > 0 ? (
-            memberList.map((member, index) => {
+          {currentMembers.length > 0 ? (
+            currentMembers.map((member, index) => {
               const role = member.estudiantes ? 'estudiante' : 'encargado';
               return renderMemberItem(member, `${role}_${index}`);
             })
@@ -172,6 +204,27 @@ const GroupInfoScreen = () => {
               <Text style={styles.emptyStateText}>No members found</Text>
             </View>
           )}
+        </View>
+        <View style={styles.paginationContainer}>
+          {pageNumbers.map((number) => (
+            <TouchableOpacity
+              key={number}
+              style={[
+                styles.paginationButton,
+                currentPage === number && styles.paginationActiveButton,
+              ]}
+              onPress={() => paginate(number)}
+            >
+              <Text
+                style={[
+                  styles.paginationButtonText,
+                  currentPage === number && styles.paginationActiveButtonText,
+                ]}
+              >
+                {number}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
         <View style={styles.assignmentsContainer}>
           <Text style={styles.integrantesTitle}>Asignaciones:</Text>
@@ -183,10 +236,9 @@ const GroupInfoScreen = () => {
                 <View key={index} style={styles.assignmentItem}>
                   <Text style={styles.assignmentTitle}>{assignment.titulo}</Text>
                   {assignment.etapas.map((etapa, etapaIndex) => (
-                    <View key={etapaIndex}>
-                      <Text style={styles.assignmentEtapa}>Etapa {etapaIndex + 1}: {etapa.descripcion}</Text>
-                      <Text style={styles.assignmentDate}>Fecha de entrega: {etapa.fecha_entrega.toDate().toLocaleDateString()}</Text>
-                    </View>
+                    <Text key={etapaIndex} style={styles.assignmentDate}>
+                      Fecha de entrega: {etapa.fecha_entrega.toDate().toLocaleDateString()}
+                    </Text>
                   ))}
                 </View>
               ))
