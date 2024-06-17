@@ -28,6 +28,12 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 10,
   },
+  subtitle: {
+    fontSize: 18,
+    color: '#4B5563',
+    marginBottom: 15,
+    marginTop: -15
+  },
   assignmentItem: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -284,20 +290,18 @@ const EncargadoAssignments = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Asignaciones</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
-      ) : assignments.length > 0 ? (
-        <FlatList
-          data={user.groups}
-          renderItem={({ item }) => renderGroupAssignments(item.id)}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={<View style={{ height: 20 }} />}
-        />
       ) : (
-        <Text style={styles.emptyText}>No hay asignaciones</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>Asignaciones</Text>
+          <Text style={styles.subtitle}>Aquí están las asignaciones que corresponden a tus grupos</Text>
+          {assignments.length > 0 ? (
+            user.groups.map((group) => renderGroupAssignments(group.id))
+          ) : (
+            <Text style={styles.emptyText}>No hay asignaciones</Text>
+          )}
+        </ScrollView>
       )}
 
       <Modal visible={!!selectedAssignment} animationType="slide">
