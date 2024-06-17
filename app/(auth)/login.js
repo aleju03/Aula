@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { fetchEssentialUserData } from '../../utils/authSlice';
 import { db } from '../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import loginImage from '../../assets/login.png';
 
 const styles = StyleSheet.create({
@@ -67,6 +68,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  toggleButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+  },
 });
 
 const LoginScreen = () => {
@@ -76,6 +82,7 @@ const LoginScreen = () => {
     contrasena: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleCarneChange = (carne) => {
     if (/^\d*$/.test(carne)) {
@@ -132,14 +139,22 @@ const LoginScreen = () => {
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            style={styles.input}
-            value={form.contrasena}
-            onChangeText={contrasena => setForm({ ...form, contrasena })}
-            placeholder="Ingrese su contraseña"
-            placeholderTextColor="#6b7280"
-            secureTextEntry
-          />
+          <View>
+            <TextInput
+              style={styles.input}
+              value={form.contrasena}
+              onChangeText={contrasena => setForm({ ...form, contrasena })}
+              placeholder="Ingrese su contraseña"
+              placeholderTextColor="#6b7280"
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons name={showPassword ? "eye" : "eye-off"} size={24} color="#075eec" />
+            </TouchableOpacity>
+          </View>
         </View>
         <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
           {loading ? (
