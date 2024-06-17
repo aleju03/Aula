@@ -51,6 +51,8 @@ const styles = StyleSheet.create({
   messageRemitente: {
     fontSize: 16,
     fontWeight: 'bold',
+    flex: 1,
+    marginRight: 10,
   },
   messageDetailsDate: {
     fontSize: 16,
@@ -60,6 +62,8 @@ const styles = StyleSheet.create({
   messageTitulo: {
     fontSize: 14,
     color: '#888',
+    flex: 2,
+    marginRight: 10,
   },
   emptyText: {
     fontSize: 16,
@@ -209,6 +213,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#000',
+    marginRight: 10,
+    flex: 1,
   },
   messageDetailsContainer: {
     flexGrow: 1,
@@ -518,8 +524,10 @@ const ProfesorMessages = () => {
         <TouchableOpacity
           style={[styles.sectionButton, selectedSection === 'recibidos' && styles.selectedSectionButton]}
           onPress={() => {
-            setSelectedSection('recibidos');
-            setIsLoading(true);
+            if (selectedSection !== 'recibidos') {
+              setSelectedSection('recibidos');
+              setIsLoading(true);
+            }
           }}
         >
           <Text style={[styles.sectionButtonText, selectedSection === 'recibidos' && styles.selectedSectionButtonText]}>
@@ -529,8 +537,10 @@ const ProfesorMessages = () => {
         <TouchableOpacity
           style={[styles.sectionButton, selectedSection === 'enviados' && styles.selectedSectionButton]}
           onPress={() => {
-            setSelectedSection('enviados');
-            setIsLoading(true);
+            if (selectedSection !== 'enviados') {
+              setSelectedSection('enviados');
+              setIsLoading(true);
+            }
           }}
         >
           <Text style={[styles.sectionButtonText, selectedSection === 'enviados' && styles.selectedSectionButtonText]}>

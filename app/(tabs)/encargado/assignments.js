@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, Alert, ScrollView, StyleSheet, Modal, FlatList, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { Text, View, TouchableOpacity, Alert, StyleSheet, Modal, FlatList, ActivityIndicator, ScrollView, ToastAndroid } from 'react-native';
 import { useSelector } from 'react-redux';
-import { db } from '../../../utils/firebase';
-import { collection,query, where, getDocs} from 'firebase/firestore';
+import { db, storage } from '../../../utils/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { FontAwesome } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import { getDownloadURL, ref } from 'firebase/storage';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 20,
     paddingTop: 40,
@@ -16,21 +20,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 5,
+    marginBottom: 20,
   },
-  button: {
-    backgroundColor: '#075eec',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  groupTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 10,
   },
   assignmentItem: {
     backgroundColor: '#FFFFFF',
@@ -45,19 +41,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    height: 150,
-    overflow: 'hidden',
   },
   assignmentTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 5,
     color: '#1F2937',
-  },
-  assignmentGroup: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 10,
   },
   assignmentEtapa: {
     fontSize: 14,
@@ -74,47 +63,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
-  closeButtonContainer: {
-    position: 'absolute',
-    top: 45,
-    right: 29,
-    zIndex: 1,
-  },
   modalContent: {
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,
   },
-  modalScrollView: {
-    padding: 20,
+  closeButtonContainer: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
   },
   modalTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 10,
-  },
-  modalGroup: {
-    fontSize: 20,
-    color: '#4B5563',
-    marginBottom: 20,
   },
   modalEtapaContainer: {
     marginBottom: 20,
   },
   modalEtapaTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 5,
   },
   modalEtapaDescription: {
-    fontSize: 18,
+    fontSize: 16,
     marginBottom: 10,
+    color: '#4B5563',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
     padding: 10,
-    borderRadius: 5,
   },
   modalEtapaDateContainer: {
     marginBottom: 10,
@@ -123,12 +105,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
+    color: '#1F2937',
   },
   modalEtapaDate: {
     fontSize: 16,
-  },
-  modalEtapaTime: {
-    fontSize: 16,
+    color: '#4B5563',
   },
   modalFilesContainer: {
     marginTop: 10,
@@ -142,7 +123,7 @@ const styles = StyleSheet.create({
   modalFileItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 10,
   },
   modalFileIcon: {
     marginRight: 10,
@@ -150,18 +131,25 @@ const styles = StyleSheet.create({
   modalFileName: {
     fontSize: 16,
     color: '#4B5563',
+    flex: 1,
   },
-  etapaButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'left',
-    marginBottom: 20,
+  downloadIcon: {
+    marginLeft: 10,
+  },
+  groupSeparator: {
+    height: 20,
+  },
+  etapaButtonContainerContent: {
+    paddingHorizontal: 10,
   },
   etapaButton: {
-    marginHorizontal: 5,
-    padding: 10,
-    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginBottom: 30,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 5,
+    marginTop: 10,
+    marginBottom: 20,
   },
   etapaButtonText: {
     fontSize: 16,
@@ -171,22 +159,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#075eec',
   },
   etapaButtonSelectedText: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
-  separator: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 10,
+  downloadIndicator: {
+    marginLeft: 10,
   },
 });
-
 
 const EncargadoAssignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [selectedAssignments, setSelectedAssignments] = useState([]);
   const [currentEtapaIndex, setCurrentEtapaIndex] = useState(0);
+  const [downloadingFileIndex, setDownloadingFileIndex] = useState(null);
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
@@ -194,84 +179,130 @@ const EncargadoAssignments = () => {
   }, []);
 
   const fetchAssignments = async () => {
-    console.log(user?.groups)
     setLoading(true);
     try {
-      const q = query(collection(db, 'Asignaciones'), where('grupo', 'in', user.groups.map(group => group.id)));
+      const userGroups = user.groups.map((group) => group.id);
+      const q = query(collection(db, 'Asignaciones'), where('grupo', 'in', userGroups));
       const querySnapshot = await getDocs(q);
-      const fetchedAssignments = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const fetchedAssignments = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setAssignments(fetchedAssignments);
     } catch (error) {
-      console.error('Error buscando las asignaciones:', error);
-      Alert.alert('Error', 'Error buscando las asignaciones');
+      console.error('Error fetching assignments:', error);
+      Alert.alert('Error', 'Failed to fetch assignments');
     }
     setLoading(false);
   };
 
-  const handleLongPress = (item) => {
-    if (selectedAssignments.includes(item.id)) {
-      setSelectedAssignments(selectedAssignments.filter(id => id !== item.id));
-    } else {
-      setSelectedAssignments([...selectedAssignments, item.id]);
+  const downloadFile = async (archivo, fileIndex) => {
+    try {
+      setDownloadingFileIndex(fileIndex);
+      const fileRef = ref(storage, `asignaciones/${archivo.nombre}`);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos denegados', 'No se pueden descargar archivos sin los permisos necesarios.');
+        return;
+      }
+
+      const fileUri = `${FileSystem.documentDirectory}${archivo.nombre}`;
+      const downloadedFile = await FileSystem.downloadAsync(downloadURL, fileUri);
+
+      if (downloadedFile.status === 200) {
+        await Sharing.shareAsync(downloadedFile.uri);
+        ToastAndroid.show('Archivo descargado correctamente.', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', 'No se pudo descargar el archivo. Por favor, inténtalo de nuevo.');
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      Alert.alert('Error', 'No se pudo descargar el archivo. Por favor, inténtalo de nuevo.');
+    } finally {
+      setDownloadingFileIndex(null);
     }
   };
 
-  const renderAssignmentItem = ({ item }) => {
-    const isSelected = selectedAssignments.includes(item.id);
+  const renderGroupAssignments = (groupId) => {
+    const groupAssignments = assignments.filter(
+      (assignment) => assignment.grupo === groupId
+    );
+
+    if (groupAssignments.length === 0) {
+      return null;
+    }
+
+    const groupName = user.groups.find((group) => group.id === groupId)?.nombre;
+
     return (
-      <TouchableOpacity
-        style={[styles.assignmentItem, isSelected && { backgroundColor: '#e5e7eb' }]}
-        onPress={() => selectedAssignments.length > 0 ? handleLongPress(item) : setSelectedAssignment(item)}
-        onLongPress={() => handleLongPress(item)}
-      >
-        <Text style={styles.assignmentTitle}>{item.titulo}</Text>
-        <Text style={styles.assignmentGroup}>{user.groups.find(group => group.id === item.grupo)?.nombre}</Text>
-        {item.etapas.length === 1 ? (
-          <Text style={styles.assignmentEtapa}>Descripción: {item.etapas[0].descripcion}</Text>
-        ) : (
-          item.etapas.map((etapa, index) => (
-            <View key={index}>
-              <Text style={styles.assignmentEtapa}>Etapa {index + 1}: {etapa.descripcion}</Text>
-              <Text style={styles.assignmentDate}>Fecha de entrega: {etapa.fecha_entrega.toDate().toLocaleDateString()}</Text>
-            </View>
-          ))
-        )}
-      </TouchableOpacity>
+      <View key={groupId}>
+        <Text style={styles.groupTitle}>{groupName}</Text>
+        {groupAssignments.map((assignment) => (
+          <TouchableOpacity
+            key={assignment.id}
+            style={styles.assignmentItem}
+            onPress={() => {
+              setSelectedAssignment(assignment);
+              setCurrentEtapaIndex(0);
+            }}
+          >
+            <Text style={styles.assignmentTitle}>{assignment.titulo}</Text>
+            {assignment.etapas.length === 1 ? (
+              <Text style={styles.assignmentEtapa}>
+                Descripción: {assignment.etapas[0].descripcion}
+              </Text>
+            ) : (
+              assignment.etapas.map((etapa, index) => (
+                <View key={index}>
+                  <Text style={styles.assignmentEtapa}>
+                    Etapa {index + 1}: {etapa.descripcion}
+                  </Text>
+                  <Text style={styles.assignmentDate}>
+                    Fecha de entrega:{' '}
+                    {etapa.fecha_entrega.toDate().toLocaleDateString()}
+                  </Text>
+                </View>
+              ))
+            )}
+          </TouchableOpacity>
+        ))}
+        <View style={styles.groupSeparator} />
+      </View>
     );
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
-      <View style={styles.container}>
-        <Text style={styles.title}>Asignaciones</Text>
-        <Text style= {styles.modalFileName}>Aqui estan las asignaciones que corresponden a tu grupo</Text>
-        {loading ? (
-          <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
-        ) : assignments.length > 0 ? (
-          <FlatList
-            data={assignments}
-            renderItem={renderAssignmentItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <Text style={styles.emptyText}>No hay asignaciones</Text>
-        )}
-      </View>
-  
+    <View style={styles.container}>
+      <Text style={styles.title}>Asignaciones</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
+      ) : assignments.length > 0 ? (
+        <FlatList
+          data={user.groups}
+          renderItem={({ item }) => renderGroupAssignments(item.id)}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={<View style={{ height: 20 }} />}
+        />
+      ) : (
+        <Text style={styles.emptyText}>No hay asignaciones</Text>
+      )}
+
       <Modal visible={!!selectedAssignment} animationType="slide">
         <View style={styles.modalContent}>
           {selectedAssignment && (
             <>
-              <TouchableOpacity style={styles.closeButtonContainer} onPress={() => setSelectedAssignment(null)}>
+              <TouchableOpacity
+                style={styles.closeButtonContainer}
+                onPress={() => setSelectedAssignment(null)}
+              >
                 <FontAwesome name="close" size={24} color="#000" />
               </TouchableOpacity>
-              <ScrollView contentContainerStyle={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.modalTitle}>{selectedAssignment.titulo}</Text>
-                <Text style={styles.modalGroup}>
-                  {user.groups.find((group) => group.id === selectedAssignment.grupo)?.nombre}
-                </Text>
                 {selectedAssignment.etapas.length > 1 && (
                   <ScrollView
                     horizontal
@@ -299,65 +330,69 @@ const EncargadoAssignments = () => {
                     ))}
                   </ScrollView>
                 )}
-                {selectedAssignment.etapas.length === 1 ? (
-                  <View style={styles.modalEtapaContainer}>
-                    <Text style={styles.modalEtapaTitle}>Descripción:</Text>
-                    <Text style={styles.modalEtapaDescription}>{selectedAssignment.etapas[0].descripcion}</Text>
-                    <View style={styles.modalEtapaDateContainer}>
-                      <Text style={styles.modalEtapaDateLabel}>Fecha de entrega:</Text>
-                      <Text style={styles.modalEtapaDate}>
-                        {selectedAssignment.etapas[0].fecha_entrega.toDate().toLocaleDateString()}
-                      </Text>
-                      <Text style={styles.modalEtapaTime}>
-                        {selectedAssignment.etapas[0].fecha_entrega.toDate().toLocaleTimeString()}
-                      </Text>
-                    </View>
-                    {selectedAssignment.etapas[0].archivos_adjuntos && selectedAssignment.etapas[0].archivos_adjuntos.length > 0 && (
-                      <View style={styles.modalFilesContainer}>
-                        <Text style={styles.modalFilesTitle}>Archivos adjuntos:</Text>
-                        {selectedAssignment.etapas[0].archivos_adjuntos.map((archivo, fileIndex) => (
-                          <View key={fileIndex} style={styles.modalFileItem}>
-                            <FontAwesome name="file" size={16} color="#4B5563" style={styles.modalFileIcon} />
-                            <Text style={styles.modalFileName}>{archivo.nombre}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.modalEtapaContainer}>
-                    <Text style={styles.modalEtapaTitle}>Etapa {currentEtapaIndex + 1}</Text>
-                    <Text style={styles.modalEtapaDescription}>
-                      {selectedAssignment.etapas[currentEtapaIndex].descripcion}
+                <View style={styles.modalEtapaContainer}>
+                  <Text style={styles.modalEtapaTitle}>
+                    {selectedAssignment.etapas.length === 1
+                      ? 'Descripción'
+                      : `Etapa ${currentEtapaIndex + 1}`}
+                  </Text>
+                  <Text style={styles.modalEtapaDescription}>
+                    {selectedAssignment.etapas[currentEtapaIndex].descripcion}
+                  </Text>
+                  <View style={styles.modalEtapaDateContainer}>
+                    <Text style={styles.modalEtapaDateLabel}>Fecha de entrega:</Text>
+                    <Text style={styles.modalEtapaDate}>
+                      {selectedAssignment.etapas[
+                        currentEtapaIndex
+                      ].fecha_entrega.toDate().toLocaleDateString()}
                     </Text>
-                    <View style={styles.modalEtapaDateContainer}>
-                      <Text style={styles.modalEtapaDateLabel}>Fecha de entrega:</Text>
-                      <Text style={styles.modalEtapaDate}>
-                        {selectedAssignment.etapas[currentEtapaIndex].fecha_entrega.toDate().toLocaleDateString()}
-                      </Text>
-                      <Text style={styles.modalEtapaTime}>
-                        {selectedAssignment.etapas[currentEtapaIndex].fecha_entrega.toDate().toLocaleTimeString()}
-                      </Text>
-                    </View>
-                    {selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos && selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos.length > 0 && (
+                  </View>
+                  {selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos &&
+                    selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos
+                      .length > 0 && (
                       <View style={styles.modalFilesContainer}>
                         <Text style={styles.modalFilesTitle}>Archivos adjuntos:</Text>
-                        {selectedAssignment.etapas[currentEtapaIndex].archivos_adjuntos.map((archivo, fileIndex) => (
+                        {selectedAssignment.etapas[
+                          currentEtapaIndex
+                        ].archivos_adjuntos.map((archivo, fileIndex) => (
                           <View key={fileIndex} style={styles.modalFileItem}>
-                            <FontAwesome name="file" size={16} color="#4B5563" style={styles.modalFileIcon} />
+                            <FontAwesome
+                              name="file"
+                              size={16}
+                              color="#4B5563"
+                              style={styles.modalFileIcon}
+                            />
                             <Text style={styles.modalFileName}>{archivo.nombre}</Text>
+                            <TouchableOpacity
+                              onPress={() => downloadFile(archivo, fileIndex)}
+                              disabled={downloadingFileIndex === fileIndex}
+                            >
+                              {downloadingFileIndex === fileIndex ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color="#075eec"
+                                  style={styles.downloadIndicator}
+                                />
+                              ) : (
+                                <FontAwesome
+                                  name="download"
+                                  size={20}
+                                  color="#075eec"
+                                  style={styles.downloadIcon}
+                                />
+                              )}
+                            </TouchableOpacity>
                           </View>
                         ))}
                       </View>
                     )}
-                  </View>
-                )}
+                </View>
               </ScrollView>
             </>
           )}
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 

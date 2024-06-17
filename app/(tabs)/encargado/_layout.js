@@ -33,6 +33,7 @@ export default function EncargadoTabLayout() {
         options={{
           title: 'Asignaciones',
           tabBarIcon: ({ color }) => <Ionicons name="document-text" size={28} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -40,6 +41,7 @@ export default function EncargadoTabLayout() {
         options={{
           title: 'Mensajes',
           tabBarIcon: ({ color }) => <Ionicons name="chatbubble-ellipses" size={28} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 import { db } from '../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -17,7 +18,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
     marginTop: 50,
     paddingHorizontal: 20,
   },
@@ -66,6 +67,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1F2937',
     marginBottom: 10,
+  },
+  docenteName: {
+    fontSize: 18,
+    color: '#6B7280',
+    marginBottom: 10,
+    paddingHorizontal: 20,
   },
   assignmentsContainer: {
     marginTop: 20,
@@ -127,6 +134,7 @@ const GroupInfoScreen = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [membersPerPage] = useState(15);
+  const userRole = useSelector((state) => state.auth.userRole);
 
   useEffect(() => {
     fetchAssignments();
@@ -141,7 +149,7 @@ const GroupInfoScreen = () => {
       setAssignments(fetchedAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
-      Alert.alert('Error', 'Failed to fetch assignments');
+      Alert.alert('Error', 'No se pudieron obtener las tareas.');
     }
     setLoading(false);
   };
@@ -191,6 +199,9 @@ const GroupInfoScreen = () => {
           <Ionicons name="close" style={styles.closeIcon} />
         </TouchableOpacity>
       </View>
+      {userRole === 'encargado' && (
+        <Text style={styles.docenteName}>Docente: {parsedGroup?.docente?.nombre}</Text>
+      )}
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <Text style={styles.integrantesTitle}>Integrantes:</Text>
         <View style={styles.memberList}>

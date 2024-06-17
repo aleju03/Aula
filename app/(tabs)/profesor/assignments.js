@@ -351,8 +351,10 @@ const ProfesorAssignments = () => {
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
-    fetchAssignments();
-  }, []);
+    if (user.groups && user.groups.length > 0) {
+      fetchAssignments();
+    }
+  }, [user.groups]);
 
   const fetchAssignments = async () => {
     setLoading(true);
