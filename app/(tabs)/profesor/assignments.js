@@ -732,7 +732,11 @@ const ProfesorAssignments = () => {
                 <Text style={styles.modalTitle}>{selectedAssignment.titulo}</Text>
                 <Text style={styles.modalGroup}>{user.groups.find(group => group.id === selectedAssignment.grupo)?.nombre}</Text>
                 {selectedAssignment.etapas.length > 1 && (
-                  <View style={styles.etapaButtonContainer}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.etapaButtonContainerContent}
+                  >
                     {selectedAssignment.etapas.map((etapa, index) => (
                       <TouchableOpacity
                         key={index}
@@ -752,7 +756,7 @@ const ProfesorAssignments = () => {
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
+                  </ScrollView>
                 )}
                 {selectedAssignment.etapas.length === 1 ? (
                   <View style={styles.modalEtapaContainer}>
