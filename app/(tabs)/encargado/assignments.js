@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, Alert, StyleSheet, Modal, FlatList, ActivityIndicator, ScrollView } from 'react-native';
+import { Text, View, TouchableOpacity, Alert, StyleSheet, Modal, ActivityIndicator, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
 import { db, storage } from '../../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -290,19 +290,19 @@ const EncargadoAssignments = () => {
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Asignaciones</Text>
-          <Text style={styles.subtitle}>Aquí están las asignaciones que corresponden a tus grupos</Text>
-          {assignments.length > 0 ? (
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Asignaciones</Text>
+        <Text style={styles.subtitle}>Aquí están las asignaciones que corresponden a tus grupos</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 230 }} />
+        ) : (
+          assignments.length > 0 ? (
             user.groups.map((group) => renderGroupAssignments(group.id))
           ) : (
             <Text style={styles.emptyText}>No hay asignaciones</Text>
-          )}
-        </ScrollView>
-      )}
+          )
+        )}
+      </ScrollView>
 
       <Modal visible={!!selectedAssignment} animationType="slide">
         <View style={styles.modalContent}>
