@@ -303,6 +303,7 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#e2e8f0',
     borderRadius: 8,
+    marginBottom: 30,
   },
   etapaButtonText: {
     fontSize: 16,
