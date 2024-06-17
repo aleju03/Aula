@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, TouchableOpacity, Alert, StyleSheet, Modal, FlatList, ActivityIndicator, ScrollView, ToastAndroid } from 'react-native';
+import { Text, View, TouchableOpacity, Alert, StyleSheet, Modal, FlatList, ActivityIndicator, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
 import { db, storage } from '../../../utils/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -41,6 +41,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    height: 150,
+    overflow: 'hidden',
+  },
+  assignmentContent: {
+    marginTop: -10,
   },
   assignmentTitle: {
     fontSize: 18,
@@ -166,6 +171,7 @@ const styles = StyleSheet.create({
   },
 });
 
+
 const EncargadoAssignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -215,7 +221,6 @@ const EncargadoAssignments = () => {
 
       if (downloadedFile.status === 200) {
         await Sharing.shareAsync(downloadedFile.uri);
-        ToastAndroid.show('Archivo descargado correctamente.', ToastAndroid.SHORT);
       } else {
         Alert.alert('Error', 'No se pudo descargar el archivo. Por favor, inténtalo de nuevo.');
       }
@@ -250,24 +255,26 @@ const EncargadoAssignments = () => {
               setCurrentEtapaIndex(0);
             }}
           >
-            <Text style={styles.assignmentTitle}>{assignment.titulo}</Text>
-            {assignment.etapas.length === 1 ? (
-              <Text style={styles.assignmentEtapa}>
-                Descripción: {assignment.etapas[0].descripcion}
-              </Text>
-            ) : (
-              assignment.etapas.map((etapa, index) => (
-                <View key={index}>
-                  <Text style={styles.assignmentEtapa}>
-                    Etapa {index + 1}: {etapa.descripcion}
-                  </Text>
-                  <Text style={styles.assignmentDate}>
-                    Fecha de entrega:{' '}
-                    {etapa.fecha_entrega.toDate().toLocaleDateString()}
-                  </Text>
-                </View>
-              ))
-            )}
+            <View style={styles.assignmentContent}>
+              <Text style={styles.assignmentTitle}>{assignment.titulo}</Text>
+              {assignment.etapas.length === 1 ? (
+                <Text style={styles.assignmentEtapa}>
+                  Descripción: {assignment.etapas[0].descripcion}
+                </Text>
+              ) : (
+                assignment.etapas.map((etapa, index) => (
+                  <View key={index}>
+                    <Text style={styles.assignmentEtapa}>
+                      Etapa {index + 1}: {etapa.descripcion}
+                    </Text>
+                    <Text style={styles.assignmentDate}>
+                      Fecha de entrega:{' '}
+                      {etapa.fecha_entrega.toDate().toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
           </TouchableOpacity>
         ))}
         <View style={styles.groupSeparator} />
