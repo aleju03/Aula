@@ -557,6 +557,7 @@ const ProfesorMessages = () => {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       ) : (
         <View style={styles.emptyContainer}>
