@@ -84,15 +84,28 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       // Fetch institution data
       const institucionPromise = getDoc(doc(db, 'Instituciones', institucionId));
 
-      // Fetch groups with pagination (e.g., 10 groups at a time)
-      const groupsQuery = query(
+      // Fetch groups where the user is a docente
+      const docenteGroupsQuery = query(
         collection(db, 'Grupos'),
         where('docente', '==', doc(db, 'Usuarios', userId)),
         limit(10)
       );
-      const groupsSnapshotPromise = getDocs(groupsQuery);
+      const docenteGroupsSnapshotPromise = getDocs(docenteGroupsQuery);
 
-      const [institucionDoc, groupsSnapshot] = await Promise.all([institucionPromise, groupsSnapshotPromise]);
+      // Fetch groups where the user is an encargado
+      const encargadoGroupsQuery = query(
+        collection(db, 'Grupos'),
+        where('encargados', 'array-contains', doc(db, 'Usuarios', userId)),
+        limit(10)
+      );
+      const encargadoGroupsSnapshotPromise = getDocs(encargadoGroupsQuery);
+
+      // Wait for all promises to resolve
+      const [institucionDoc, docenteGroupsSnapshot, encargadoGroupsSnapshot] = await Promise.all([
+        institucionPromise,
+        docenteGroupsSnapshotPromise,
+        encargadoGroupsSnapshotPromise,
+      ]);
 
       if (institucionDoc.exists()) {
         userData.institucion = {
@@ -104,20 +117,28 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
       const groupsData = [];
       const encargadosPromises = [];
 
-      groupsSnapshot.docs.forEach(groupDoc => {
-        const groupData = groupDoc.data();
-        groupsData.push({ id: groupDoc.id, ...groupData });
+      const processGroupsSnapshot = (groupsSnapshot) => {
+        groupsSnapshot.docs.forEach(groupDoc => {
+          const groupData = groupDoc.data();
+          groupsData.push({ id: groupDoc.id, ...groupData });
 
-        groupData.encargados.forEach(encargadoRef => {
-          encargadosPromises.push(getDoc(encargadoRef));
+          groupData.encargados.forEach(encargadoRef => {
+            encargadosPromises.push(getDoc(encargadoRef));
+          });
         });
-      });
+      };
 
+      // Process groups for both docente and encargado roles
+      processGroupsSnapshot(docenteGroupsSnapshot);
+      processGroupsSnapshot(encargadoGroupsSnapshot);
+
+      // Fetch all encargados
       const encargadosDocs = await Promise.all(encargadosPromises);
       const encargadosData = encargadosDocs.map(encargadoDoc => ({ id: encargadoDoc.id, ...encargadoDoc.data() }));
-      
+
+      // Map encargados data back to groups
       groupsData.forEach(group => {
-        group.encargados = group.encargados.map(encargadoRef => encargadosData.find(encargado => encargado.id === encargadoRef.id));
+        group.encargados = group.encargados.map(encargadoRef => encargadosData.find(encargado => encargado.id === encargadoRef.id) || encargadoRef);
       });
 
       userData.groups = groupsData;
@@ -131,5 +152,6 @@ export const fetchAdditionalUserData = (userId) => async (dispatch) => {
     dispatch(setLoading(false));
   }
 };
+
 
 export default authSlice.reducer;

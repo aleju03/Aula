@@ -194,6 +194,7 @@ const EncargadoAssignments = () => {
   }, []);
 
   const fetchAssignments = async () => {
+    console.log(user?.groups)
     setLoading(true);
     try {
       const q = query(collection(db, 'Asignaciones'), where('grupo', 'in', user.groups.map(group => group.id)));
@@ -243,6 +244,7 @@ const EncargadoAssignments = () => {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
       <View style={styles.container}>
         <Text style={styles.title}>Asignaciones</Text>
+        <Text style= {styles.modalFileName}>Aqui estan las asignaciones que corresponden a tu grupo</Text>
         {loading ? (
           <ActivityIndicator size="large" color="#075eec" style={{ marginTop: 50 }} />
         ) : assignments.length > 0 ? (
